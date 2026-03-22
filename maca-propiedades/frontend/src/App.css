@@ -1,0 +1,8 @@
+.property-card-image {
+  transition: transform 0.7s ease-in-out;
+}
+.property-card:hover .property-card-image {
+  transform: scale(1.1);
+}
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
