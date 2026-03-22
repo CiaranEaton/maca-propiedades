@@ -12,9 +12,10 @@ const Footer = () => (
         <div>
           <h3 className="text-xl font-semibold mb-4">Contacto</h3>
           <div className="space-y-3">
-            <div className="flex items-center gap-3"><Phone size={18} /><span className="text-white/80">+57 954 327 446</span></div>
-            <div className="flex items-center gap-3"><Mail size={18} /><span className="text-white/80">contacto@macapropiedades.com</span></div>
-            <div className="flex items-center gap-3"><MapPin size={18} /><span className="text-white/80">Medellín, Colombia</span></div>
+            <div className="flex items-center gap-3"><Phone size={18} /><span className="text-white/80">+56 954 327 446</span></div>
+            <div className="flex items-center gap-3"><Phone size={18} /><span className="text-white/80">+56 945 358 545</span></div>
+            <div className="flex items-center gap-3"><Mail size={18} /><span className="text-white/80">contacto@macapropiedades.cl</span></div>
+            <div className="flex items-center gap-3"><MapPin size={18} /><span className="text-white/80">Chillán, Chile</span></div>
           </div>
         </div>
         <div>
