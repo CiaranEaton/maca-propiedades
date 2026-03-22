@@ -7,6 +7,7 @@ const Footer = () => (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-12">
         <div>
           <img src="https://customer-assets.emergentagent.com/job_property-gallery-6/artifacts/65lwawjz_A%C3%B1adir%20un%20t%C3%ADtulo%20%281%29.png" alt="MACA Propiedades" className="h-20 w-auto mb-4" />
+          <p className="text-white/80 leading-relaxed">Tu solución habitacional</p>
           <p className="text-white/80 leading-relaxed">Tu socio confiable en bienes raíces. Conectamos familias con sus hogares ideales.</p>
         </div>
         <div>
