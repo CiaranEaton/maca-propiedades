@@ -14,7 +14,7 @@ const Footer = () => (
           <div className="space-y-3">
             <div className="flex items-center gap-3"><Phone size={18} /><span className="text-white/80">+56 954 327 446</span></div>
             <div className="flex items-center gap-3"><Phone size={18} /><span className="text-white/80">+56 945 358 545</span></div>
-            <div className="flex items-center gap-3"><Mail size={18} /><span className="text-white/80">contacto@macapropiedades.cl</span></div>
+            <div className="flex items-center gap-3"><Mail size={18} /><span className="text-white/80">macapropiedades.2@gmail.com</span></div>
             <div className="flex items-center gap-3"><MapPin size={18} /><span className="text-white/80">Chillán, Chile</span></div>
           </div>
         </div>
