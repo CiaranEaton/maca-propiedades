@@ -1,43 +1,45 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Request, Response
+from fastapi import FastAPI, APIRouter, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-from starlette.middleware.base import BaseHTTPMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
-import ssl
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
 import uuid
 from datetime import datetime, timezone
+import certifi
 
+# -------------------------
+# ENV
+# -------------------------
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-import certifi
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url, tlsCAFile=certifi.where())
 db = client[os.environ['DB_NAME']]
 
+# -------------------------
+# APP
+# -------------------------
 app = FastAPI()
 
-# CORS manual: siempre agrega los headers sin importar el estado del servidor
-class CORSMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        if request.method == "OPTIONS":
-            response = Response(status_code=200)
-        else:
-            response = await call_next(request)
-        response.headers["Access-Control-Allow-Origin"] = "*"
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-        return response
-
-app.add_middleware(CORSMiddleware)
+# ✅ CORS OFICIAL (esto soluciona tu error)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # luego puedes restringir a tu dominio de Vercel
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 api_router = APIRouter(prefix="/api")
 
-
+# -------------------------
+# MODELOS
+# -------------------------
 class Property(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -76,7 +78,9 @@ class PropertyUpdate(BaseModel):
     image_url: Optional[str] = None
     description: Optional[str] = None
 
-
+# -------------------------
+# RUTAS
+# -------------------------
 @api_router.get("/")
 async def root():
     return {"message": "MACA Propiedades API"}
@@ -106,14 +110,18 @@ async def update_property(property_id: str, input: PropertyUpdate):
     existing = await db.properties.find_one({"id": property_id}, {"_id": 0})
     if not existing:
         raise HTTPException(status_code=404, detail="Property not found")
+
     if isinstance(existing['created_at'], str):
         existing['created_at'] = datetime.fromisoformat(existing['created_at'])
+
     update_data = input.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         existing[key] = value
+
     property_obj = Property(**existing)
     doc = property_obj.model_dump()
     doc['created_at'] = doc['created_at'].isoformat()
+
     await db.properties.update_one({"id": property_id}, {"$set": doc})
     return property_obj
 
@@ -125,13 +133,20 @@ async def delete_property(property_id: str):
         raise HTTPException(status_code=404, detail="Property not found")
     return {"message": "Property deleted successfully"}
 
-
+# -------------------------
+# INCLUDE ROUTER
+# -------------------------
 app.include_router(api_router)
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# -------------------------
+# LOGGING
+# -------------------------
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-
+# -------------------------
+# SHUTDOWN
+# -------------------------
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
