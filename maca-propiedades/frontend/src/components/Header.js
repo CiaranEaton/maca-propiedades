@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, LogOut } from 'lucide-react';
 
-const Header = ({ onAdminClick }) => {
+const Header = ({ onAdminClick, isAdmin, onLogout }) => {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -21,17 +21,25 @@ const Header = ({ onAdminClick }) => {
           <nav className="hidden md:flex items-center gap-8">
             <a href="#propiedades" className={`font-medium transition-colors hover:text-[#1a5f7a] ${scrolled ? 'text-slate-700' : 'text-white'}`}>Propiedades</a>
             <a href="#contacto" className={`font-medium transition-colors hover:text-[#1a5f7a] ${scrolled ? 'text-slate-700' : 'text-white'}`}>Contacto</a>
-            <button onClick={onAdminClick} className="bg-[#1a5f7a] hover:bg-[#134e66] text-white rounded-full px-6 py-3 font-medium transition-all hover:-translate-y-0.5">Admin</button>
+            {isAdmin ? (
+              <div className="flex items-center gap-3">
+                <button onClick={onAdminClick} className="bg-[#1a5f7a] hover:bg-[#134e66] text-white rounded-full px-6 py-3 font-medium transition-all hover:-translate-y-0.5">+ Agregar</button>
+                <button onClick={onLogout} title="Cerrar sesión admin" className="bg-red-100 hover:bg-red-200 text-red-600 rounded-full p-3 transition-all"><LogOut size={18} /></button>
+              </div>
+            ) : (
+              <button onClick={onAdminClick} className="bg-[#1a5f7a] hover:bg-[#134e66] text-white rounded-full px-6 py-3 font-medium transition-all hover:-translate-y-0.5">Admin</button>
+            )}
           </nav>
           <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden">
             {mobileMenuOpen ? <X className={scrolled ? 'text-slate-700' : 'text-white'} size={28} /> : <Menu className={scrolled ? 'text-slate-700' : 'text-white'} size={28} />}
           </button>
         </div>
         {mobileMenuOpen && (
-          <nav className="md:hidden mt-6 flex flex-col gap-4 pb-4 bg-white rounded-2xl p-4 mt-4">
+          <nav className="md:hidden mt-4 flex flex-col gap-4 pb-4 bg-white rounded-2xl p-4">
             <a href="#propiedades" onClick={() => setMobileMenuOpen(false)} className="font-medium text-slate-700 hover:text-[#1a5f7a]">Propiedades</a>
             <a href="#contacto" onClick={() => setMobileMenuOpen(false)} className="font-medium text-slate-700 hover:text-[#1a5f7a]">Contacto</a>
-            <button onClick={() => { onAdminClick(); setMobileMenuOpen(false); }} className="bg-[#1a5f7a] text-white rounded-full px-6 py-3 font-medium text-left">Admin</button>
+            <button onClick={() => { onAdminClick(); setMobileMenuOpen(false); }} className="bg-[#1a5f7a] text-white rounded-full px-6 py-3 font-medium text-left">{isAdmin ? '+ Agregar Propiedad' : 'Admin'}</button>
+            {isAdmin && <button onClick={onLogout} className="bg-red-100 text-red-600 rounded-full px-6 py-3 font-medium text-left">Cerrar sesión</button>}
           </nav>
         )}
       </div>
