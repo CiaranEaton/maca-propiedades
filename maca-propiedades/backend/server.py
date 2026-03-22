@@ -100,8 +100,6 @@ async def delete_property(property_id: str):
         raise HTTPException(status_code=404, detail="Property not found")
     return {"message": "Property deleted successfully"}
 
-app.include_router(api_router)
-
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=False,
@@ -109,6 +107,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(api_router)
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
