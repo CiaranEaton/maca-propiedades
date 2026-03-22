@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from starlette.middleware.base import BaseHTTPMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
+import ssl
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
@@ -14,7 +15,6 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
 mongo_url = os.environ['MONGO_URL']
-import ssl
 client = AsyncIOMotorClient(
     mongo_url,
     tls=True,
