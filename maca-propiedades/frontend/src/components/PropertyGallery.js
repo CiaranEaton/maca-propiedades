@@ -6,7 +6,7 @@ import { Filter } from 'lucide-react';
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
-const PropertyGallery = ({ onEdit }) => {
+const PropertyGallery = ({ onEdit, isAdmin }) => {
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState('all');
@@ -43,9 +43,11 @@ const PropertyGallery = ({ onEdit }) => {
     return matchType && matchStatus;
   });
 
-  const FilterBtn = ({ value, current, onClick, color = '#1a5f7a' }) => (
-    <button onClick={onClick} className={`px-6 py-2.5 rounded-full font-medium transition-all ${current === value ? `text-white shadow-md` : 'bg-white text-slate-700 border border-slate-200'}`}
-      style={current === value ? { backgroundColor: color } : {}}>{value === 'all' ? 'Todas' : value}</button>
+  const FilterBtn = ({ value, current, onClick, color }) => (
+    <button onClick={onClick} className={`px-6 py-2.5 rounded-full font-medium transition-all ${current === value ? 'text-white shadow-md' : 'bg-white text-slate-700 border border-slate-200 hover:border-[#1a5f7a]'}`}
+      style={current === value ? { backgroundColor: color } : {}}>
+      {value === 'all' ? 'Todas' : value}
+    </button>
   );
 
   return (
@@ -56,7 +58,7 @@ const PropertyGallery = ({ onEdit }) => {
           <h2 className="text-4xl md:text-5xl font-semibold tracking-tight text-[#1a5f7a] mb-6">Encuentra Tu Propiedad Ideal</h2>
           <p className="text-base md:text-lg text-slate-600 max-w-2xl mx-auto">Explora nuestra selección de casas, apartamentos y terrenos disponibles para venta o arriendo</p>
         </div>
-        <div className="mb-12 flex flex-col md:flex-row gap-6 items-center justify-center flex-wrap">
+        <div className="mb-12 flex flex-col md:flex-row gap-4 items-center justify-center flex-wrap">
           <div className="flex items-center gap-3"><Filter className="text-[#1a5f7a]" size={20} /><span className="font-medium text-slate-700">Tipo:</span></div>
           <div className="flex flex-wrap gap-3 justify-center">
             {['all', 'Casa', 'Apartamento', 'Terreno'].map(v => <FilterBtn key={v} value={v} current={typeFilter} onClick={() => setTypeFilter(v)} color="#1a5f7a" />)}
@@ -73,7 +75,7 @@ const PropertyGallery = ({ onEdit }) => {
           <div className="text-center py-20"><p className="text-lg text-slate-600">No se encontraron propiedades con los filtros seleccionados.</p></div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-12">
-            {filtered.map(property => <PropertyCard key={property.id} property={property} onEdit={onEdit} onDelete={handleDelete} />)}
+            {filtered.map(property => <PropertyCard key={property.id} property={property} onEdit={onEdit} onDelete={handleDelete} isAdmin={isAdmin} />)}
           </div>
         )}
       </div>
