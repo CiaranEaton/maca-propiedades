@@ -192,7 +192,7 @@ const PropertyGallery = ({ onEdit, isAdmin }) => {
 
             {/* WhatsApp */}
             <a
-              href={`https://wa.me/573001234567?text=Hola, me interesa la propiedad ${selectedProperty.title} ubicada en ${selectedProperty.location}`}
+              href={`https://wa.me/56954327446?text=Hola, me interesa la propiedad ${selectedProperty.title} ubicada en ${selectedProperty.location}`}
               target="_blank"
               rel="noopener noreferrer"
               className="mt-5 inline-block bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-semibold"
