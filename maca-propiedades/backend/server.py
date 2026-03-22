@@ -1,6 +1,6 @@
-from fastapi import FastAPI, APIRouter, HTTPException
+from fastapi import FastAPI, APIRouter, HTTPException, Request, Response
 from dotenv import load_dotenv
-from starlette.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
@@ -18,7 +18,23 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
 app = FastAPI()
+
+# CORS manual: siempre agrega los headers sin importar el estado del servidor
+class CORSMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        if request.method == "OPTIONS":
+            response = Response(status_code=200)
+        else:
+            response = await call_next(request)
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+        return response
+
+app.add_middleware(CORSMiddleware)
+
 api_router = APIRouter(prefix="/api")
+
 
 class Property(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -34,6 +50,7 @@ class Property(BaseModel):
     description: Optional[str] = ""
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+
 class PropertyCreate(BaseModel):
     title: str
     type: str
@@ -44,6 +61,7 @@ class PropertyCreate(BaseModel):
     location: str
     image_url: str
     description: Optional[str] = ""
+
 
 class PropertyUpdate(BaseModel):
     title: Optional[str] = None
@@ -56,9 +74,11 @@ class PropertyUpdate(BaseModel):
     image_url: Optional[str] = None
     description: Optional[str] = None
 
+
 @api_router.get("/")
 async def root():
     return {"message": "MACA Propiedades API"}
+
 
 @api_router.get("/properties", response_model=List[Property])
 async def get_properties():
@@ -68,6 +88,7 @@ async def get_properties():
             prop['created_at'] = datetime.fromisoformat(prop['created_at'])
     return properties
 
+
 @api_router.post("/properties", response_model=Property)
 async def create_property(input: PropertyCreate):
     property_dict = input.model_dump()
@@ -76,6 +97,7 @@ async def create_property(input: PropertyCreate):
     doc['created_at'] = doc['created_at'].isoformat()
     await db.properties.insert_one(doc)
     return property_obj
+
 
 @api_router.put("/properties/{property_id}", response_model=Property)
 async def update_property(property_id: str, input: PropertyUpdate):
@@ -93,6 +115,7 @@ async def update_property(property_id: str, input: PropertyUpdate):
     await db.properties.update_one({"id": property_id}, {"$set": doc})
     return property_obj
 
+
 @api_router.delete("/properties/{property_id}")
 async def delete_property(property_id: str):
     result = await db.properties.delete_one({"id": property_id})
@@ -100,18 +123,12 @@ async def delete_property(property_id: str):
         raise HTTPException(status_code=404, detail="Property not found")
     return {"message": "Property deleted successfully"}
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=False,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 app.include_router(api_router)
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
