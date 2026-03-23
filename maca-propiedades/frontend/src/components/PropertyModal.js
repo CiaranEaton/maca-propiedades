@@ -25,10 +25,13 @@ const PropertyModal = ({ property, onClose }) => {
     return () => window.removeEventListener('keydown', handler);
   }, [zoomed, onClose]);
 
-  // Bloquear scroll del body
+  // Bloquear scroll — limpieza robusta para evitar congelamiento
   useEffect(() => {
     document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = ''; };
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.removeProperty('overflow');
+    };
   }, []);
 
   const currencySymbol = CURRENCY_SYMBOLS[property.currency] || '$';
@@ -45,7 +48,7 @@ const PropertyModal = ({ property, onClose }) => {
         onClick={onClose}
       >
         <div
-          className="bg-white w-full max-w-5xl rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[95vh]"
+          className="bg-white w-full max-w-5xl rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[95vh] relative"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Botón cerrar */}
@@ -59,8 +62,9 @@ const PropertyModal = ({ property, onClose }) => {
           {/* LAYOUT: stack en móvil, lado a lado en desktop */}
           <div className="flex flex-col md:flex-row overflow-auto md:overflow-hidden flex-1 min-h-0">
 
-            {/* BLOQUE IMAGEN — altura controlada */}
+            {/* BLOQUE IMAGEN */}
             <div className="relative w-full md:w-1/2 flex-shrink-0 bg-black flex flex-col">
+
               {/* Imagen principal — altura fija */}
               <div className="relative h-56 sm:h-64 md:h-full min-h-0 flex-1 overflow-hidden">
                 {images.length > 0 && (
@@ -71,7 +75,6 @@ const PropertyModal = ({ property, onClose }) => {
                       className="w-full h-full object-cover cursor-zoom-in"
                       onClick={() => setZoomed(true)}
                     />
-                    {/* Ícono zoom */}
                     <button
                       onClick={() => setZoomed(true)}
                       className="absolute bottom-3 left-3 bg-black/50 text-white p-1.5 rounded-full hover:bg-black/70 transition"
@@ -100,9 +103,9 @@ const PropertyModal = ({ property, onClose }) => {
                 )}
               </div>
 
-              {/* Thumbnails — fila horizontal con scroll */}
+              {/* Thumbnails */}
               {images.length > 1 && (
-                <div className="flex gap-2 p-2 overflow-x-auto bg-black/80 flex-shrink-0" style={{ scrollbarWidth: 'thin' }}>
+                <div className="flex gap-2 p-2 overflow-x-auto bg-black/80 flex-shrink-0">
                   {images.map((img, i) => (
                     <button key={i} onClick={() => setIndex(i)} className="flex-shrink-0">
                       <img
@@ -120,6 +123,7 @@ const PropertyModal = ({ property, onClose }) => {
             {/* BLOQUE INFO */}
             <div className="flex flex-col justify-between p-5 md:p-6 overflow-y-auto flex-1 min-h-0">
               <div className="flex flex-col gap-3">
+
                 {/* Badges */}
                 <div className="flex gap-2 flex-wrap">
                   <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${
@@ -138,7 +142,10 @@ const PropertyModal = ({ property, onClose }) => {
 
                 <div className="flex items-center gap-2 text-slate-500">
                   <MapPin size={15} />
-                  <span className="text-sm">{property.commune ? `${property.commune}, ` : ''}{property.region || property.location}</span>
+                  <span className="text-sm">
+                    {property.commune ? `${property.commune}, ` : ''}
+                    {property.region || property.location}
+                  </span>
                 </div>
 
                 <div className="flex gap-5 py-3 border-y border-slate-100">
@@ -173,7 +180,7 @@ const PropertyModal = ({ property, onClose }) => {
         </div>
       </div>
 
-      {/* LIGHTBOX — zoom al hacer clic en imagen */}
+      {/* LIGHTBOX */}
       {zoomed && (
         <div
           className="fixed inset-0 bg-black/95 z-[60] flex items-center justify-center p-4"
