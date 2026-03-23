@@ -48,6 +48,8 @@ const PropertyGallery = ({ onEdit, isAdmin }) => {
     return matchType && matchStatus;
   });
 
+  const [selectedProperty, setSelectedProperty] = useState(null);
+
   const FilterBtn = ({ value, current, onClick, color }) => (
     <button
       onClick={onClick}
