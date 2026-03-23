@@ -36,6 +36,8 @@ const emptyForm = {
   title: '', type: 'Casa', status: 'Venta',
   currency: 'CLP', price: '',
   bedrooms: 1, bathrooms: 1,
+  parking: 0,
+  area: '',
   region: '', commune: '',
   image_urls: [], description: ''
 };
@@ -64,9 +66,10 @@ const AdminModal = ({ isOpen, onClose, editProperty, onSuccess }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    const numericFields = ['bedrooms', 'bathrooms', 'parking'];
     setFormData(prev => ({
       ...prev,
-      [name]: (name === 'bedrooms' || name === 'bathrooms') ? parseInt(value) || 0 : value,
+      [name]: numericFields.includes(name) ? parseInt(value) || 0 : value,
       ...(name === 'region' ? { commune: '' } : {})
     }));
   };
@@ -148,6 +151,10 @@ const AdminModal = ({ isOpen, onClose, editProperty, onSuccess }) => {
   const selectedCurrency = CURRENCIES.find(c => c.value === formData.currency) || CURRENCIES[0];
   const comunas = formData.region ? REGIONES_COMUNAS[formData.region] || [] : [];
 
+  // Etiqueta de área según tipo
+  const areaLabel = formData.type === 'Terreno' ? 'Área total (m²)' : formData.type === 'Apartamento' ? 'Área construida (m²)' : 'Área construida (m²)';
+  const areaPlaceholder = formData.type === 'Terreno' ? 'Ej: 500' : 'Ej: 85';
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div className="bg-white rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -158,12 +165,11 @@ const AdminModal = ({ isOpen, onClose, editProperty, onSuccess }) => {
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
 
-          {/* === GALERÍA DE IMÁGENES === */}
+          {/* GALERÍA */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
               Fotos de la propiedad * <span className="text-slate-400 font-normal">({formData.image_urls.length}/12 — mín. 1, máx. 12)</span>
             </label>
-
             {formData.image_urls.length > 0 && (
               <div className="relative mb-3 rounded-2xl overflow-hidden bg-slate-100" style={{height: '220px'}}>
                 <img src={formData.image_urls[currentImageIndex]} alt={`Foto ${currentImageIndex + 1}`} className="w-full h-full object-cover" />
@@ -190,7 +196,6 @@ const AdminModal = ({ isOpen, onClose, editProperty, onSuccess }) => {
                 </div>
               </div>
             )}
-
             <div className="grid grid-cols-4 gap-2 mb-3">
               {formData.image_urls.map((url, i) => (
                 <div key={i} onClick={() => setCurrentImageIndex(i)} className={`relative cursor-pointer rounded-xl overflow-hidden aspect-square border-2 transition-all ${i === currentImageIndex ? 'border-[#1a5f7a]' : 'border-transparent'}`}>
@@ -203,22 +208,21 @@ const AdminModal = ({ isOpen, onClose, editProperty, onSuccess }) => {
                 </div>
               )}
             </div>
-
             <button type="button" onClick={() => fileInputRef.current.click()} disabled={uploading || formData.image_urls.length >= 12}
               className="w-full py-3 border-2 border-dashed border-slate-300 hover:border-[#1a5f7a] rounded-xl text-slate-500 hover:text-[#1a5f7a] font-medium transition-all flex items-center justify-center gap-2 disabled:opacity-40">
               <Upload size={18} />
-              {uploading ? 'Subiendo...' : `Subir fotos desde el computador (puedes seleccionar varias)`}
+              {uploading ? 'Subiendo...' : 'Subir fotos desde el computador (puedes seleccionar varias)'}
             </button>
             <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleImageUpload} className="hidden" />
           </div>
 
-          {/* === TÍTULO === */}
+          {/* TÍTULO */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Título *</label>
             <input type="text" name="title" value={formData.title} onChange={handleChange} required className={inputClass} placeholder="Ej: Casa con jardín en Las Condes" />
           </div>
 
-          {/* === TIPO Y ESTADO === */}
+          {/* TIPO Y ESTADO */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">Tipo *</label>
@@ -237,7 +241,7 @@ const AdminModal = ({ isOpen, onClose, editProperty, onSuccess }) => {
             </div>
           </div>
 
-          {/* === PRECIO CON MONEDA === */}
+          {/* PRECIO */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Precio *</label>
             <div className="flex gap-3">
@@ -249,8 +253,8 @@ const AdminModal = ({ isOpen, onClose, editProperty, onSuccess }) => {
             <p className="text-xs text-slate-400 mt-1">Los puntos se agregan automáticamente como separador de miles</p>
           </div>
 
-          {/* === HABITACIONES Y BAÑOS === */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* HABITACIONES, BAÑOS, ESTACIONAMIENTO */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">Habitaciones *</label>
               <input type="number" name="bedrooms" value={formData.bedrooms} onChange={handleChange} required min="0" className={inputClass} />
@@ -259,9 +263,33 @@ const AdminModal = ({ isOpen, onClose, editProperty, onSuccess }) => {
               <label className="block text-sm font-medium text-slate-700 mb-2">Baños *</label>
               <input type="number" name="bathrooms" value={formData.bathrooms} onChange={handleChange} required min="0" className={inputClass} />
             </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Estacionamientos</label>
+              <input type="number" name="parking" value={formData.parking} onChange={handleChange} min="0" className={inputClass} placeholder="0" />
+            </div>
           </div>
 
-          {/* === REGIÓN Y COMUNA === */}
+          {/* ÁREA — etiqueta cambia según tipo */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">{areaLabel}</label>
+            <div className="relative">
+              <input
+                type="number"
+                name="area"
+                value={formData.area}
+                onChange={handleChange}
+                min="0"
+                className={inputClass}
+                placeholder={areaPlaceholder}
+              />
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">m²</span>
+            </div>
+            <p className="text-xs text-slate-400 mt-1">
+              {formData.type === 'Terreno' ? 'Área total del terreno en metros cuadrados' : 'Superficie construida en metros cuadrados'}
+            </p>
+          </div>
+
+          {/* REGIÓN Y COMUNA */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">Región *</label>
@@ -279,13 +307,13 @@ const AdminModal = ({ isOpen, onClose, editProperty, onSuccess }) => {
             </div>
           </div>
 
-          {/* === DESCRIPCIÓN === */}
+          {/* DESCRIPCIÓN */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Descripción</label>
             <textarea name="description" value={formData.description} onChange={handleChange} rows="4" className={inputClass} placeholder="Describe las características de la propiedad..." />
           </div>
 
-          {/* === BOTONES === */}
+          {/* BOTONES */}
           <div className="flex gap-4 pt-4">
             <button type="button" onClick={onClose} className="flex-1 px-6 py-3 border-2 border-slate-300 text-slate-700 rounded-full font-medium hover:bg-slate-50 transition-colors">Cancelar</button>
             <button type="submit" disabled={submitting || uploading} className="flex-1 px-6 py-3 bg-[#1a5f7a] hover:bg-[#134e66] text-white rounded-full font-medium transition-all disabled:opacity-50">
