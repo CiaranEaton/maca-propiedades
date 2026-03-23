@@ -29,7 +29,7 @@ const Footer = () => (
             />
           </div>
           <p className="text-white/70 leading-relaxed text-sm">
-            Tu socio confiable en bienes raíces. Conectamos familias con sus hogares ideales en Chillán y toda la región.
+            Somos tu solución habitacional
           </p>
         </div>
 
