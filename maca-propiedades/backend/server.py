@@ -49,6 +49,8 @@ class Property(BaseModel):
     bathrooms: int
     parking: Optional[int] = 0
     area: Optional[str] = ""
+    area_built: Optional[str] = ""
+    area_total: Optional[str] = ""
     location: Optional[str] = ""
     region: Optional[str] = ""
     commune: Optional[str] = ""
@@ -68,6 +70,8 @@ class PropertyCreate(BaseModel):
     bathrooms: int
     parking: Optional[int] = 0
     area: Optional[str] = ""
+    area_built: Optional[str] = ""
+    area_total: Optional[str] = ""
     location: Optional[str] = ""
     region: Optional[str] = ""
     commune: Optional[str] = ""
@@ -86,6 +90,8 @@ class PropertyUpdate(BaseModel):
     bathrooms: Optional[int] = None
     parking: Optional[int] = None
     area: Optional[str] = None
+    area_built: Optional[str] = None
+    area_total: Optional[str] = None
     location: Optional[str] = None
     region: Optional[str] = None
     commune: Optional[str] = None
