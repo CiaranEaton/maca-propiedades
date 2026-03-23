@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { X, ChevronLeft, ChevronRight, ZoomIn, Bed, Bath, Car, Maximize2, Layers, Wind, MapPin } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const CURRENCY_SYMBOLS = { CLP: 'CLP', UF: 'UF', USD: 'USD' };
+const CURRENCY_SYMBOLS = { CLP: '$', UF: 'UF', USD: 'USD' };
 
 const PropertyModal = ({ property, onClose }) => {
   const [index, setIndex] = useState(0);
@@ -17,6 +17,7 @@ const PropertyModal = ({ property, onClose }) => {
 
   useEffect(() => { setIndex(0); setZoomed(false); }, [property]);
 
+  // Escape para cerrar
   useEffect(() => {
     if (!property) return;
     const handler = (e) => {
@@ -26,6 +27,7 @@ const PropertyModal = ({ property, onClose }) => {
     return () => window.removeEventListener('keydown', handler);
   }, [property, zoomed, onClose]);
 
+  // Overflow del body
   useEffect(() => {
     if (property) {
       document.body.style.overflow = 'hidden';
@@ -34,6 +36,34 @@ const PropertyModal = ({ property, onClose }) => {
     }
     return () => { document.body.style.overflow = ''; };
   }, [property]);
+
+  // ✅ Botón ATRÁS de Android/iOS — cierra la modal en vez de salir de la página
+  useEffect(() => {
+    if (!property) return;
+
+    // Empujamos un estado falso al historial cuando abre la modal
+    window.history.pushState({ modal: true }, '');
+
+    const handlePopState = (e) => {
+      // El usuario presionó atrás — cerramos la modal
+      if (zoomed) {
+        setZoomed(false);
+        // Volvemos a empujar estado para que el siguiente atrás cierre la modal completa
+        window.history.pushState({ modal: true }, '');
+      } else {
+        onClose();
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      // Si la modal se cierra programáticamente (ej. clic en X), limpiamos el estado
+      if (window.history.state?.modal) {
+        window.history.back();
+      }
+    };
+  }, [property, zoomed, onClose]);
 
   if (!property) return null;
 
@@ -59,7 +89,7 @@ const PropertyModal = ({ property, onClose }) => {
     <AnimatePresence>
       {property && (
         <>
-          {/* Backdrop con fade */}
+          {/* Backdrop */}
           <motion.div
             key="backdrop"
             initial={{ opacity: 0 }}
@@ -84,10 +114,8 @@ const PropertyModal = ({ property, onClose }) => {
               style={{ maxHeight: '92vh' }}
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Línea decorativa superior */}
               <div className="h-1 w-full flex-shrink-0" style={{ background: 'linear-gradient(90deg, #1a5f7a, #00bcd4, #9acd32)' }} />
 
-              {/* Botón cerrar */}
               <button
                 onClick={onClose}
                 className="absolute top-4 right-4 bg-white hover:bg-slate-100 border border-slate-200 p-1.5 rounded-full shadow-sm z-20 transition"
@@ -136,7 +164,9 @@ const PropertyModal = ({ property, onClose }) => {
                       {images.map((img, i) => (
                         <button key={i} onClick={() => setIndex(i)} className="flex-shrink-0">
                           <img src={img}
-                            className={`h-12 w-16 object-cover rounded-md transition border-2 ${i === index ? 'border-[#00bcd4] opacity-100' : 'border-transparent opacity-50 hover:opacity-80'}`}
+                            className={`h-12 w-16 object-cover rounded-md transition border-2 ${
+                              i === index ? 'border-[#00bcd4] opacity-100' : 'border-transparent opacity-50 hover:opacity-80'
+                            }`}
                           />
                         </button>
                       ))}
@@ -149,12 +179,10 @@ const PropertyModal = ({ property, onClose }) => {
                   <div className="p-5 md:p-6 flex flex-col gap-4 flex-1">
                     <div>
                       <div className="flex gap-2 flex-wrap mb-3">
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${property.status === 'Venta' ? 'bg-[#9acd32] text-white' : 'bg-[#00bcd4] text-white'}`}>
-                          {property.status}
-                        </span>
-                        <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide bg-slate-100 text-[#1a5f7a]">
-                          {property.type}
-                        </span>
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${
+                          property.status === 'Venta' ? 'bg-[#9acd32] text-white' : 'bg-[#00bcd4] text-white'
+                        }`}>{property.status}</span>
+                        <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide bg-slate-100 text-[#1a5f7a]">{property.type}</span>
                       </div>
                       <h2 className="text-xl md:text-2xl font-bold text-[#1a5f7a] leading-tight mb-2">{property.title}</h2>
                       <div className="flex items-center gap-1.5 text-slate-500">
@@ -209,20 +237,26 @@ const PropertyModal = ({ property, onClose }) => {
               className="fixed inset-0 bg-black/95 z-[60] flex items-center justify-center p-4"
               onClick={() => setZoomed(false)}
             >
-              <button onClick={() => setZoomed(false)} className="absolute top-4 right-4 bg-white/20 hover:bg-white/30 text-white p-2 rounded-full transition">
+              <button onClick={() => setZoomed(false)}
+                className="absolute top-4 right-4 bg-white/20 hover:bg-white/30 text-white p-2 rounded-full transition">
                 <X size={22} />
               </button>
               {images.length > 1 && (
                 <>
-                  <button onClick={(e) => { e.stopPropagation(); prev(); }} className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/30 text-white p-3 rounded-full transition">
+                  <button onClick={(e) => { e.stopPropagation(); prev(); }}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/30 text-white p-3 rounded-full transition">
                     <ChevronLeft size={26} />
                   </button>
-                  <button onClick={(e) => { e.stopPropagation(); next(); }} className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/30 text-white p-3 rounded-full transition">
+                  <button onClick={(e) => { e.stopPropagation(); next(); }}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/30 text-white p-3 rounded-full transition">
                     <ChevronRight size={26} />
                   </button>
                 </>
               )}
-              <img src={images[index]} className="max-w-full max-h-full object-contain rounded-xl select-none" onClick={(e) => e.stopPropagation()} />
+              <img src={images[index]}
+                className="max-w-full max-h-full object-contain rounded-xl select-none"
+                onClick={(e) => e.stopPropagation()}
+              />
               <p className="absolute bottom-5 text-white/60 text-sm">{index + 1} / {images.length}</p>
             </motion.div>
           )}
