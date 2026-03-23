@@ -37,7 +37,7 @@ const emptyForm = {
   currency: 'CLP', price: '',
   bedrooms: 1, bathrooms: 1,
   parking: 0,
-  area: '',
+  area: '', area_built: '', area_total: '',
   region: '', commune: '',
   image_urls: [], description: ''
 };
@@ -82,10 +82,7 @@ const AdminModal = ({ isOpen, onClose, editProperty, onSuccess }) => {
   const handleImageUpload = async (e) => {
     const files = Array.from(e.target.files);
     if (!files.length) return;
-    if (formData.image_urls.length + files.length > 12) {
-      alert('Máximo 12 fotos por propiedad.');
-      return;
-    }
+    if (formData.image_urls.length + files.length > 12) { alert('Máximo 12 fotos por propiedad.'); return; }
     setUploading(true);
     try {
       const uploadedUrls = [];
@@ -107,23 +104,14 @@ const AdminModal = ({ isOpen, onClose, editProperty, onSuccess }) => {
   };
 
   const removeImage = (index) => {
-    setFormData(prev => {
-      const updated = prev.image_urls.filter((_, i) => i !== index);
-      return { ...prev, image_urls: updated };
-    });
+    setFormData(prev => ({ ...prev, image_urls: prev.image_urls.filter((_, i) => i !== index) }));
     setCurrentImageIndex(prev => Math.max(0, prev - 1));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.image_urls.length) {
-      alert('Por favor sube al menos una foto de la propiedad.');
-      return;
-    }
-    if (!formData.region) {
-      alert('Por favor selecciona una región.');
-      return;
-    }
+    if (!formData.image_urls.length) { alert('Por favor sube al menos una foto de la propiedad.'); return; }
+    if (!formData.region) { alert('Por favor selecciona una región.'); return; }
     setSubmitting(true);
     const payload = {
       ...formData,
@@ -131,11 +119,8 @@ const AdminModal = ({ isOpen, onClose, editProperty, onSuccess }) => {
       location: `${formData.commune ? formData.commune + ', ' : ''}${formData.region}, Chile`
     };
     try {
-      if (editProperty) {
-        await axios.put(`${API}/properties/${editProperty.id}`, payload);
-      } else {
-        await axios.post(`${API}/properties`, payload);
-      }
+      if (editProperty) { await axios.put(`${API}/properties/${editProperty.id}`, payload); }
+      else { await axios.post(`${API}/properties`, payload); }
       onSuccess();
       onClose();
     } catch (error) {
@@ -151,10 +136,6 @@ const AdminModal = ({ isOpen, onClose, editProperty, onSuccess }) => {
   const selectedCurrency = CURRENCIES.find(c => c.value === formData.currency) || CURRENCIES[0];
   const comunas = formData.region ? REGIONES_COMUNAS[formData.region] || [] : [];
 
-  // Etiqueta de área según tipo
-  const areaLabel = formData.type === 'Terreno' ? 'Área total (m²)' : formData.type === 'Apartamento' ? 'Área construida (m²)' : 'Área construida (m²)';
-  const areaPlaceholder = formData.type === 'Terreno' ? 'Ej: 500' : 'Ej: 85';
-
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div className="bg-white rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -168,50 +149,39 @@ const AdminModal = ({ isOpen, onClose, editProperty, onSuccess }) => {
           {/* GALERÍA */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
-              Fotos de la propiedad * <span className="text-slate-400 font-normal">({formData.image_urls.length}/12 — mín. 1, máx. 12)</span>
+              Fotos * <span className="text-slate-400 font-normal">({formData.image_urls.length}/12)</span>
             </label>
             {formData.image_urls.length > 0 && (
               <div className="relative mb-3 rounded-2xl overflow-hidden bg-slate-100" style={{height: '220px'}}>
-                <img src={formData.image_urls[currentImageIndex]} alt={`Foto ${currentImageIndex + 1}`} className="w-full h-full object-cover" />
-                <button type="button" onClick={() => removeImage(currentImageIndex)} className="absolute top-3 right-3 bg-red-500 hover:bg-red-600 text-white p-2 rounded-full shadow-lg transition-all">
-                  <Trash2 size={16} />
-                </button>
+                <img src={formData.image_urls[currentImageIndex]} alt="" className="w-full h-full object-cover" />
+                <button type="button" onClick={() => removeImage(currentImageIndex)} className="absolute top-3 right-3 bg-red-500 hover:bg-red-600 text-white p-2 rounded-full shadow-lg transition-all"><Trash2 size={16} /></button>
                 {formData.image_urls.length > 1 && (
                   <>
-                    <button type="button" onClick={() => setCurrentImageIndex(i => Math.max(0, i - 1))} className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white p-2 rounded-full transition-all">
-                      <ChevronLeft size={20} />
-                    </button>
-                    <button type="button" onClick={() => setCurrentImageIndex(i => Math.min(formData.image_urls.length - 1, i + 1))} className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white p-2 rounded-full transition-all">
-                      <ChevronRight size={20} />
-                    </button>
+                    <button type="button" onClick={() => setCurrentImageIndex(i => Math.max(0, i - 1))} className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white p-2 rounded-full"><ChevronLeft size={20} /></button>
+                    <button type="button" onClick={() => setCurrentImageIndex(i => Math.min(formData.image_urls.length - 1, i + 1))} className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white p-2 rounded-full"><ChevronRight size={20} /></button>
                     <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1">
-                      {formData.image_urls.map((_, i) => (
-                        <button key={i} type="button" onClick={() => setCurrentImageIndex(i)} className={`w-2 h-2 rounded-full transition-all ${i === currentImageIndex ? 'bg-white w-5' : 'bg-white/50'}`} />
-                      ))}
+                      {formData.image_urls.map((_, i) => (<button key={i} type="button" onClick={() => setCurrentImageIndex(i)} className={`w-2 h-2 rounded-full transition-all ${i === currentImageIndex ? 'bg-white w-5' : 'bg-white/50'}`} />))}
                     </div>
                   </>
                 )}
-                <div className="absolute bottom-3 right-3 bg-black/50 text-white text-xs px-2 py-1 rounded-full">
-                  {currentImageIndex + 1} / {formData.image_urls.length}
-                </div>
+                <div className="absolute bottom-3 right-3 bg-black/50 text-white text-xs px-2 py-1 rounded-full">{currentImageIndex + 1} / {formData.image_urls.length}</div>
               </div>
             )}
             <div className="grid grid-cols-4 gap-2 mb-3">
               {formData.image_urls.map((url, i) => (
-                <div key={i} onClick={() => setCurrentImageIndex(i)} className={`relative cursor-pointer rounded-xl overflow-hidden aspect-square border-2 transition-all ${i === currentImageIndex ? 'border-[#1a5f7a]' : 'border-transparent'}`}>
-                  <img src={url} alt={`thumb-${i}`} className="w-full h-full object-cover" />
+                <div key={i} onClick={() => setCurrentImageIndex(i)} className={`cursor-pointer rounded-xl overflow-hidden aspect-square border-2 transition-all ${i === currentImageIndex ? 'border-[#1a5f7a]' : 'border-transparent'}`}>
+                  <img src={url} alt="" className="w-full h-full object-cover" />
                 </div>
               ))}
               {formData.image_urls.length < 12 && (
-                <div onClick={() => fileInputRef.current.click()} className="cursor-pointer border-2 border-dashed border-slate-300 hover:border-[#1a5f7a] rounded-xl aspect-square flex flex-col items-center justify-center transition-colors text-slate-400 hover:text-[#1a5f7a]">
+                <div onClick={() => fileInputRef.current.click()} className="cursor-pointer border-2 border-dashed border-slate-300 hover:border-[#1a5f7a] rounded-xl aspect-square flex flex-col items-center justify-center text-slate-400 hover:text-[#1a5f7a]">
                   {uploading ? <div className="w-6 h-6 border-2 border-[#1a5f7a]/30 border-t-[#1a5f7a] rounded-full animate-spin" /> : <><Image size={24} /><span className="text-xs mt-1">Agregar</span></>}
                 </div>
               )}
             </div>
             <button type="button" onClick={() => fileInputRef.current.click()} disabled={uploading || formData.image_urls.length >= 12}
               className="w-full py-3 border-2 border-dashed border-slate-300 hover:border-[#1a5f7a] rounded-xl text-slate-500 hover:text-[#1a5f7a] font-medium transition-all flex items-center justify-center gap-2 disabled:opacity-40">
-              <Upload size={18} />
-              {uploading ? 'Subiendo...' : 'Subir fotos desde el computador (puedes seleccionar varias)'}
+              <Upload size={18} />{uploading ? 'Subiendo...' : 'Subir fotos (puedes seleccionar varias)'}
             </button>
             <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleImageUpload} className="hidden" />
           </div>
@@ -219,7 +189,7 @@ const AdminModal = ({ isOpen, onClose, editProperty, onSuccess }) => {
           {/* TÍTULO */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Título *</label>
-            <input type="text" name="title" value={formData.title} onChange={handleChange} required className={inputClass} placeholder="Ej: Casa con jardín en Las Condes" />
+            <input type="text" name="title" value={formData.title} onChange={handleChange} required className={inputClass} placeholder="Ej: VENDO LINDA CASA EN CHILLÁN !" />
           </div>
 
           {/* TIPO Y ESTADO */}
@@ -269,24 +239,26 @@ const AdminModal = ({ isOpen, onClose, editProperty, onSuccess }) => {
             </div>
           </div>
 
-          {/* ÁREA — etiqueta cambia según tipo */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">{areaLabel}</label>
-            <div className="relative">
-              <input
-                type="number"
-                name="area"
-                value={formData.area}
-                onChange={handleChange}
-                min="0"
-                className={inputClass}
-                placeholder={areaPlaceholder}
-              />
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">m²</span>
+          {/* ÁREAS */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                {formData.type === 'Terreno' ? 'Área total (m²)' : 'M² construidos'}
+              </label>
+              <div className="relative">
+                <input type="number" name="area_built" value={formData.area_built} onChange={handleChange} min="0" className={inputClass} placeholder="Ej: 85" />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">m²</span>
+              </div>
+              <p className="text-xs text-slate-400 mt-1">{formData.type === 'Terreno' ? 'Superficie total del terreno' : 'Superficie techada construida'}</p>
             </div>
-            <p className="text-xs text-slate-400 mt-1">
-              {formData.type === 'Terreno' ? 'Área total del terreno en metros cuadrados' : 'Superficie construida en metros cuadrados'}
-            </p>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">M² totales del terreno</label>
+              <div className="relative">
+                <input type="number" name="area_total" value={formData.area_total} onChange={handleChange} min="0" className={inputClass} placeholder="Ej: 200" />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">m²</span>
+              </div>
+              <p className="text-xs text-slate-400 mt-1">Superficie total del sitio o parcela</p>
+            </div>
           </div>
 
           {/* REGIÓN Y COMUNA */}
@@ -307,10 +279,14 @@ const AdminModal = ({ isOpen, onClose, editProperty, onSuccess }) => {
             </div>
           </div>
 
-          {/* DESCRIPCIÓN */}
+          {/* DESCRIPCIÓN CON MARKDOWN */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Descripción</label>
-            <textarea name="description" value={formData.description} onChange={handleChange} rows="4" className={inputClass} placeholder="Describe las características de la propiedad..." />
+            <textarea name="description" value={formData.description} onChange={handleChange} rows="6" className={inputClass}
+              placeholder={"Escribe una descripción llamativa. Ejemplos:\n\nVENDO linda casa a 12 minutos del centro\n\n✅ 3 Dormitorios\n✅ 1 Baño\n✅ Living comedor amplio\n✅ Estacionamiento\n\n**Valor: 55 millones**"} />
+            <p className="text-xs text-slate-400 mt-1">
+              💡 Usa <strong>✅ ítem</strong> para listas, <strong>**texto**</strong> para negrita, emojis y saltos de línea normales
+            </p>
           </div>
 
           {/* BOTONES */}
