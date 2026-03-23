@@ -16,7 +16,7 @@ const Header = ({ onAdminClick, isAdmin, onLogout }) => {
       <div className="max-w-7xl mx-auto px-6 md:px-12">
         <div className="flex items-center justify-between">
           <a href="#" className="flex items-center">
-            <img src="https://customer-assets.emergentagent.com/job_property-gallery-6/artifacts/65lwawjz_A%C3%B1adir%20un%20t%C3%ADtulo%20%281%29.png" alt="MACA Propiedades" className="h-16 w-auto" />
+            <img src="https://res.cloudinary.com/dixpqiaki/image/upload/v1774240529/21077156-80c5-424e-99bc-f9526a6f0026-removebg-preview_ldizx0.png" alt="MACA Propiedades" className="h-16 w-auto" />
           </a>
           <nav className="hidden md:flex items-center gap-8">
             <a href="#propiedades" className={`font-medium transition-colors hover:text-[#1a5f7a] ${scrolled ? 'text-slate-700' : 'text-white'}`}>Propiedades</a>
