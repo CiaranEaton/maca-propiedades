@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bed, Bath, MapPin, Edit, Trash2, ChevronLeft, ChevronRight, Car, Maximize2, Images } from 'lucide-react';
+import { Bed, Bath, MapPin, Edit, Trash2, ChevronLeft, ChevronRight, Car, Maximize2, Images, Star, Tag } from 'lucide-react';
 
 const CURRENCY_SYMBOLS = { CLP: '$', UF: 'UF', USD: 'USD' };
 
@@ -15,7 +15,15 @@ const PropertyCard = ({ property, onEdit, onDelete, isAdmin, onClick }) => {
   return (
     <div
       onClick={() => onClick(property)}
-      className="cursor-pointer group bg-white rounded-2xl overflow-hidden border border-slate-100 hover:border-[#00bcd4]/40 transition-all duration-300 shadow-sm hover:shadow-lg flex flex-col"
+      className="cursor-pointer group bg-white rounded-2xl overflow-hidden border transition-all duration-300 shadow-sm hover:shadow-lg flex flex-col"
+      style={{
+        borderColor: property.featured ? '#1a5f7a' : property.on_offer ? '#9acd32' : '#f1f5f9',
+        boxShadow: property.featured
+          ? '0 0 0 2px rgba(26,95,122,0.25)'
+          : property.on_offer
+          ? '0 0 0 2px rgba(154,205,50,0.25)'
+          : undefined
+      }}
     >
       {/* Imagen — altura fija */}
       <div className="relative w-full h-52 bg-slate-200 flex-shrink-0 overflow-hidden">
@@ -34,8 +42,28 @@ const PropertyCard = ({ property, onEdit, onDelete, isAdmin, onClick }) => {
 
         <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent pointer-events-none" />
 
-        {/* Badges */}
-        <div className="absolute top-3 left-3 flex gap-1.5">
+        {/* ✅ Badge DESTACADA o EN OFERTA — esquina superior izquierda */}
+        {(property.featured || property.on_offer) && (
+          <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5">
+            {property.featured && (
+              <div className="flex items-center gap-1.5 bg-[#1a5f7a] text-white px-3 py-1.5 rounded-full shadow-lg"
+                style={{ backdropFilter: 'blur(4px)' }}>
+                <Star size={12} fill="white" />
+                <span className="text-xs font-bold uppercase tracking-wide">Destacada</span>
+              </div>
+            )}
+            {property.on_offer && (
+              <div className="flex items-center gap-1.5 text-white px-3 py-1.5 rounded-full shadow-lg"
+                style={{ background: 'linear-gradient(135deg, #9acd32, #7cb342)', backdropFilter: 'blur(4px)' }}>
+                <Tag size={12} />
+                <span className="text-xs font-bold uppercase tracking-wide">En oferta</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Badges tipo/estado — esquina superior derecha si hay destacado, izquierda si no */}
+        <div className={`absolute top-3 flex gap-1.5 ${property.featured || property.on_offer ? 'right-3' : 'left-3'}`}>
           <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide shadow ${
             property.status === 'Venta' ? 'bg-[#9acd32] text-white' : 'bg-[#00bcd4] text-white'
           }`}>{property.status}</span>
@@ -46,7 +74,7 @@ const PropertyCard = ({ property, onEdit, onDelete, isAdmin, onClick }) => {
 
         {/* Botones admin */}
         {isAdmin && (
-          <div className="absolute top-3 right-3 flex gap-1.5 z-10">
+          <div className="absolute bottom-10 right-3 flex gap-1.5 z-10">
             <button onClick={(e) => { e.stopPropagation(); onEdit(property); }}
               className="bg-white/90 hover:bg-white p-1.5 rounded-full shadow transition-all">
               <Edit className="text-[#1a5f7a]" size={15} />
@@ -91,8 +119,7 @@ const PropertyCard = ({ property, onEdit, onDelete, isAdmin, onClick }) => {
           </span>
         </div>
 
-        {/* Características — fila principal */}
-        <div className="flex items-center gap-4 py-2 border-t border-slate-100 flex-wrap">
+        <div className="flex items-center gap-4 py-2 border-t border-slate-100 flex-wrap mt-auto">
           <div className="flex items-center gap-1.5">
             <Bed className="text-[#00bcd4]" size={15} />
             <span className="text-xs text-slate-600 font-medium">{property.bedrooms} hab</span>
@@ -107,15 +134,15 @@ const PropertyCard = ({ property, onEdit, onDelete, isAdmin, onClick }) => {
               <span className="text-xs text-slate-600 font-medium">{property.parking} est.</span>
             </div>
           )}
-          {property.area && (
+          {(property.area_built || property.area) && (
             <div className="flex items-center gap-1.5">
               <Maximize2 className="text-amber-500" size={15} />
-              <span className="text-xs text-slate-600 font-medium">{property.area} m²</span>
+              <span className="text-xs text-slate-600 font-medium">{property.area_built || property.area} m²</span>
             </div>
           )}
         </div>
 
-        <p className="text-xl font-bold text-[#1a5f7a] mt-auto">{priceDisplay}</p>
+        <p className="text-xl font-bold text-[#1a5f7a]">{priceDisplay}</p>
       </div>
     </div>
   );
