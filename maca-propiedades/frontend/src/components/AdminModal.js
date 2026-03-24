@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Upload, Image, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, Upload, Image, Trash2, ChevronLeft, ChevronRight, Star, Tag } from 'lucide-react';
 import axios from 'axios';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -39,7 +39,8 @@ const emptyForm = {
   parking: 0,
   area: '', area_built: '', area_total: '',
   region: '', commune: '',
-  image_urls: [], description: ''
+  image_urls: [], description: '',
+  featured: false, on_offer: false
 };
 
 const formatNumber = (val) => {
@@ -190,6 +191,60 @@ const AdminModal = ({ isOpen, onClose, editProperty, onSuccess }) => {
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Título *</label>
             <input type="text" name="title" value={formData.title} onChange={handleChange} required className={inputClass} placeholder="Ej: VENDO LINDA CASA EN CHILLÁN !" />
+          </div>
+
+
+          {/* DESTACADA / EN OFERTA */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <button
+              type="button"
+              onClick={() => setFormData(prev => ({ ...prev, featured: !prev.featured }))}
+              className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all text-left ${
+                formData.featured
+                  ? 'border-[#1a5f7a] bg-[#1a5f7a]/5'
+                  : 'border-slate-200 hover:border-[#1a5f7a]/40'
+              }`}
+            >
+              <div className={`p-2 rounded-xl flex-shrink-0 ${formData.featured ? 'bg-[#1a5f7a]' : 'bg-slate-100'}`}>
+                <Star size={18} className={formData.featured ? 'text-white' : 'text-slate-400'} fill={formData.featured ? 'white' : 'none'} />
+              </div>
+              <div>
+                <p className={`font-semibold text-sm ${formData.featured ? 'text-[#1a5f7a]' : 'text-slate-600'}`}>
+                  Propiedad Destacada
+                </p>
+                <p className="text-xs text-slate-400">Aparece primero en la galería</p>
+              </div>
+              <div className={`ml-auto w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                formData.featured ? 'bg-[#1a5f7a] border-[#1a5f7a]' : 'border-slate-300'
+              }`}>
+                {formData.featured && <div className="w-2 h-2 bg-white rounded-full" />}
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setFormData(prev => ({ ...prev, on_offer: !prev.on_offer }))}
+              className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all text-left ${
+                formData.on_offer
+                  ? 'border-[#9acd32] bg-[#9acd32]/5'
+                  : 'border-slate-200 hover:border-[#9acd32]/40'
+              }`}
+            >
+              <div className={`p-2 rounded-xl flex-shrink-0 ${formData.on_offer ? 'bg-[#9acd32]' : 'bg-slate-100'}`}>
+                <Tag size={18} className={formData.on_offer ? 'text-white' : 'text-slate-400'} />
+              </div>
+              <div>
+                <p className={`font-semibold text-sm ${formData.on_offer ? 'text-[#7cb342]' : 'text-slate-600'}`}>
+                  En Oferta
+                </p>
+                <p className="text-xs text-slate-400">Muestra badge de oferta especial</p>
+              </div>
+              <div className={`ml-auto w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                formData.on_offer ? 'bg-[#9acd32] border-[#9acd32]' : 'border-slate-300'
+              }`}>
+                {formData.on_offer && <div className="w-2 h-2 bg-white rounded-full" />}
+              </div>
+            </button>
           </div>
 
           {/* TIPO Y ESTADO */}
