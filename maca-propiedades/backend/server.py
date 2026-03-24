@@ -57,6 +57,8 @@ class Property(BaseModel):
     image_url: Optional[str] = ""
     image_urls: Optional[List[str]] = []
     description: Optional[str] = ""
+    featured: Optional[bool] = False
+    on_offer: Optional[bool] = False
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -78,6 +80,8 @@ class PropertyCreate(BaseModel):
     image_url: Optional[str] = ""
     image_urls: Optional[List[str]] = []
     description: Optional[str] = ""
+    featured: Optional[bool] = False
+    on_offer: Optional[bool] = False
 
 
 class PropertyUpdate(BaseModel):
@@ -98,6 +102,8 @@ class PropertyUpdate(BaseModel):
     image_url: Optional[str] = None
     image_urls: Optional[List[str]] = None
     description: Optional[str] = None
+    featured: Optional[bool] = None
+    on_offer: Optional[bool] = None
 
 
 @api_router.get("/")
@@ -111,6 +117,11 @@ async def get_properties():
     for prop in properties:
         if isinstance(prop.get('created_at'), str):
             prop['created_at'] = datetime.fromisoformat(prop['created_at'])
+    # Ordenar: destacadas primero, luego ofertas, luego el resto
+    properties.sort(key=lambda p: (
+        not p.get('featured', False),
+        not p.get('on_offer', False)
+    ))
     return properties
 
 
