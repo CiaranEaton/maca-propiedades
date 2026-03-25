@@ -28,6 +28,8 @@ const PropertyModal = ({ property, onClose }) => {
   const [zoomed, setZoomed] = useState(false);
   const touchStartX = useRef(null);
   const touchStartY = useRef(null);
+  // Para distinguir tap vs swipe
+  const touchMoved = useRef(false);
 
   const images = property?.image_urls?.length
     ? property.image_urls
@@ -65,22 +67,37 @@ const PropertyModal = ({ property, onClose }) => {
     };
   }, [property, zoomed, onClose]);
 
-  // Swipe handlers
+  // ── Swipe handlers ──────────────────────────────────────────────────────────
+  // touchMoved nos permite saber si fue un tap real o un swipe,
+  // así el zoom funciona en móvil aunque los botones laterales existan.
   const handleTouchStart = (e) => {
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
+    touchMoved.current = false;
+  };
+
+  const handleTouchMove = (e) => {
+    if (touchStartX.current === null) return;
+    const deltaX = Math.abs(e.touches[0].clientX - touchStartX.current);
+    const deltaY = Math.abs(e.touches[0].clientY - touchStartY.current);
+    if (deltaX > 8 || deltaY > 8) touchMoved.current = true;
   };
 
   const handleTouchEnd = (e) => {
     if (touchStartX.current === null) return;
     const deltaX = e.changedTouches[0].clientX - touchStartX.current;
     const deltaY = e.changedTouches[0].clientY - touchStartY.current;
-    if (Math.abs(deltaX) > 40 && Math.abs(deltaX) > Math.abs(deltaY)) {
+
+    if (touchMoved.current && Math.abs(deltaX) > 40 && Math.abs(deltaX) > Math.abs(deltaY)) {
+      // Fue swipe → cambiar imagen
       if (deltaX < 0) next();
       else prev();
     }
+    // Si NO hubo movimiento apreciable → fue tap → zoom lo maneja onClick de la imagen
+
     touchStartX.current = null;
     touchStartY.current = null;
+    touchMoved.current = false;
   };
 
   if (!property) return null;
@@ -119,9 +136,11 @@ const PropertyModal = ({ property, onClose }) => {
             transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
             className="fixed inset-0 z-50 flex items-center justify-center p-2 md:p-6 pointer-events-none"
           >
-            <div className="bg-white w-full max-w-5xl rounded-2xl overflow-hidden shadow-2xl flex flex-col relative pointer-events-auto"
-              style={{ maxHeight: '92vh' }} onClick={(e) => e.stopPropagation()}>
-
+            <div
+              className="bg-white w-full max-w-5xl rounded-2xl overflow-hidden shadow-2xl flex flex-col relative pointer-events-auto"
+              style={{ maxHeight: '92vh' }}
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="h-1 w-full flex-shrink-0" style={{ background: 'linear-gradient(90deg, #1a5f7a, #00bcd4, #9acd32)' }} />
 
               <button onClick={onClose} className="absolute top-4 right-4 bg-white hover:bg-slate-100 border border-slate-200 p-1.5 rounded-full shadow-sm z-20 transition">
@@ -130,12 +149,26 @@ const PropertyModal = ({ property, onClose }) => {
 
               <div className="flex flex-col md:flex-row overflow-hidden flex-1 min-h-0">
 
-                {/* IMÁGENES */}
+                {/* ── IMÁGENES ─────────────────────────────────────────────── */}
                 <div className="w-full md:w-[52%] flex-shrink-0 bg-slate-900 flex flex-col">
+
+                  {/*
+                    FIX 1 — Sin maxHeight fijo: el área de imagen ocupa todo el
+                    espacio disponible en desktop (flex-1) y en móvil usa una
+                    altura proporcional (aspect-ratio) para que nunca quede
+                    espacio negro abajo.
+                  */}
                   <div
-                    className="relative flex-1 min-h-0 overflow-hidden select-none"
-                    style={{ minHeight: '220px', maxHeight: '420px' }}
+                    className="relative overflow-hidden select-none flex-1"
+                    style={{
+                      /* En móvil (cuando el panel es horizontal-full) usamos
+                         aspect-ratio para que la altura sea proporcional.
+                         En desktop flex-1 toma todo el espacio restante. */
+                      aspectRatio: '16/10',
+                      minHeight: '200px',
+                    }}
                     onTouchStart={handleTouchStart}
+                    onTouchMove={handleTouchMove}
                     onTouchEnd={handleTouchEnd}
                   >
                     {images.length > 0 ? (
@@ -148,9 +181,13 @@ const PropertyModal = ({ property, onClose }) => {
                           animate={{ opacity: 1, x: 0 }}
                           exit={{ opacity: 0, x: -30 }}
                           transition={{ duration: 0.25 }}
-                          className="w-full h-full object-cover absolute inset-0"
+                          /*
+                            FIX 2 — object-contain en lugar de object-cover:
+                            la imagen se ve completa sin recortes. Si prefieres
+                            que llene el área sin barras negras usa object-cover.
+                          */
+                          className="w-full h-full object-contain absolute inset-0 bg-slate-900"
                           draggable={false}
-                          // ✅ Click en imagen → zoom (sin botón invisible encima)
                           onClick={() => setZoomed(true)}
                           style={{ cursor: 'zoom-in' }}
                         />
@@ -159,27 +196,30 @@ const PropertyModal = ({ property, onClose }) => {
                       <div className="w-full h-full flex items-center justify-center text-slate-500">Sin imágenes</div>
                     )}
 
-                    {/* ✅ Botones laterales SOLO en los bordes, no cubren el centro */}
+                    {/*
+                      FIX 3 — Botones laterales solo en la mitad central (top-1/4
+                      bottom-1/4) para que el tap en el centro de la imagen
+                      llegue limpio al onClick de zoom, tanto en desktop
+                      como en móvil.
+                    */}
                     {images.length > 1 && (
                       <>
-                        {/* Franja izquierda estrecha — no interfiere con zoom */}
                         <button
                           onClick={(e) => { e.stopPropagation(); prev(); }}
-                          className="absolute left-0 top-0 bottom-0 w-10 z-10 flex items-center justify-center"
-                          style={{ background: 'linear-gradient(to right, rgba(0,0,0,0.35), transparent)' }}
+                          className="absolute left-0 top-1/4 bottom-1/4 w-12 z-10 flex items-center justify-center"
+                          style={{ background: 'linear-gradient(to right, rgba(0,0,0,0.40), transparent)' }}
                           aria-label="Anterior"
                         >
-                          <ChevronLeft size={22} className="text-white drop-shadow" />
+                          <ChevronLeft size={24} className="text-white drop-shadow" />
                         </button>
 
-                        {/* Franja derecha estrecha */}
                         <button
                           onClick={(e) => { e.stopPropagation(); next(); }}
-                          className="absolute right-0 top-0 bottom-0 w-10 z-10 flex items-center justify-center"
-                          style={{ background: 'linear-gradient(to left, rgba(0,0,0,0.35), transparent)' }}
+                          className="absolute right-0 top-1/4 bottom-1/4 w-12 z-10 flex items-center justify-center"
+                          style={{ background: 'linear-gradient(to left, rgba(0,0,0,0.40), transparent)' }}
                           aria-label="Siguiente"
                         >
-                          <ChevronRight size={22} className="text-white drop-shadow" />
+                          <ChevronRight size={24} className="text-white drop-shadow" />
                         </button>
 
                         <div className="absolute bottom-3 right-3 bg-black/60 text-white text-xs px-2 py-1 rounded-full z-10 pointer-events-none">
@@ -188,7 +228,6 @@ const PropertyModal = ({ property, onClose }) => {
                       </>
                     )}
 
-                    {/* Hint de zoom en esquina — sin bloquear clics */}
                     {images.length > 0 && (
                       <div className="absolute bottom-3 left-3 bg-black/40 text-white text-xs px-2 py-1 rounded-full z-10 pointer-events-none flex items-center gap-1">
                         🔍 Toca para ampliar
@@ -201,18 +240,21 @@ const PropertyModal = ({ property, onClose }) => {
                     <div className="flex gap-1.5 p-2 overflow-x-auto bg-black/85 flex-shrink-0">
                       {images.map((img, i) => (
                         <button key={i} onClick={() => setIndex(i)} className="flex-shrink-0">
-                          <img src={img} className={`h-12 w-16 object-cover rounded-md transition border-2 ${i === index ? 'border-[#00bcd4] opacity-100' : 'border-transparent opacity-50 hover:opacity-80'}`} />
+                          <img
+                            src={img}
+                            alt=""
+                            className={`h-12 w-16 object-cover rounded-md transition border-2 ${i === index ? 'border-[#00bcd4] opacity-100' : 'border-transparent opacity-50 hover:opacity-80'}`}
+                          />
                         </button>
                       ))}
                     </div>
                   )}
                 </div>
 
-                {/* INFO */}
+                {/* ── INFO ─────────────────────────────────────────────────── */}
                 <div className="flex flex-col flex-1 min-h-0 overflow-y-auto">
                   <div className="p-5 md:p-6 flex flex-col gap-4 flex-1">
 
-                    {/* Badges destacada/oferta en modal */}
                     {(property.featured || property.on_offer) && (
                       <div className="flex gap-2 flex-wrap">
                         {property.featured && (
@@ -243,7 +285,6 @@ const PropertyModal = ({ property, onClose }) => {
                       </div>
                     </div>
 
-                    {/* Precio con original tachado */}
                     <div className={`rounded-xl px-4 py-3 border ${property.on_offer ? 'bg-gradient-to-r from-[#9acd32]/10 to-[#7cb342]/5 border-[#9acd32]/30' : 'bg-gradient-to-r from-[#1a5f7a]/5 to-[#00bcd4]/5 border-[#1a5f7a]/10'}`}>
                       <p className="text-xs text-slate-400 uppercase tracking-wide font-medium mb-1">Precio</p>
                       {property.on_offer && originalPriceDisplay && (
@@ -290,11 +331,13 @@ const PropertyModal = ({ property, onClose }) => {
             </div>
           </motion.div>
 
-          {/* LIGHTBOX */}
+          {/* ── LIGHTBOX ───────────────────────────────────────────────────── */}
           {zoomed && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
               className="fixed inset-0 bg-black/95 z-[60] flex items-center justify-center p-4"
               onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
               onClick={() => setZoomed(false)}
             >
@@ -313,8 +356,13 @@ const PropertyModal = ({ property, onClose }) => {
                   </button>
                 </>
               )}
-              <img src={images[index]} className="max-w-full max-h-full object-contain rounded-xl select-none"
-                onClick={(e) => e.stopPropagation()} draggable={false} />
+              <img
+                src={images[index]}
+                alt={property.title}
+                className="max-w-full max-h-full object-contain rounded-xl select-none"
+                onClick={(e) => e.stopPropagation()}
+                draggable={false}
+              />
               <p className="absolute bottom-5 text-white/60 text-sm">{index + 1} / {images.length}</p>
             </motion.div>
           )}
