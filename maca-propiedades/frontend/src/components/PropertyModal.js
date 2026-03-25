@@ -161,15 +161,30 @@ const PropertyModal = ({ property, onClose }) => {
                   <div
                     className="relative overflow-hidden select-none flex-1"
                     style={{
-                      /* En móvil (cuando el panel es horizontal-full) usamos
-                         aspect-ratio para que la altura sea proporcional.
-                         En desktop flex-1 toma todo el espacio restante. */
                       aspectRatio: '16/10',
                       minHeight: '200px',
                     }}
                     onTouchStart={handleTouchStart}
                     onTouchMove={handleTouchMove}
-                    onTouchEnd={handleTouchEnd}
+                    onTouchEnd={(e) => {
+                      // Paramos el burbujeo SIEMPRE para que nunca llegue al backdrop
+                      e.stopPropagation();
+                      // Si fue un tap limpio (sin movimiento) → abrir zoom
+                      if (!touchMoved.current) {
+                        setZoomed(true);
+                        touchStartX.current = null;
+                        touchStartY.current = null;
+                        touchMoved.current = false;
+                        return;
+                      }
+                      // Si fue swipe → manejar normalmente
+                      handleTouchEnd(e);
+                    }}
+                    // En desktop: click directo en el div abre zoom
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setZoomed(true);
+                    }}
                   >
                     {images.length > 0 ? (
                       <AnimatePresence mode="wait">
@@ -181,15 +196,10 @@ const PropertyModal = ({ property, onClose }) => {
                           animate={{ opacity: 1, x: 0 }}
                           exit={{ opacity: 0, x: -30 }}
                           transition={{ duration: 0.25 }}
-                          /*
-                            FIX 2 — object-contain en lugar de object-cover:
-                            la imagen se ve completa sin recortes. Si prefieres
-                            que llene el área sin barras negras usa object-cover.
-                          */
                           className="w-full h-full object-contain absolute inset-0 bg-slate-900"
                           draggable={false}
-                          onClick={() => setZoomed(true)}
-                          style={{ cursor: 'zoom-in' }}
+                          // No necesita onClick propio — el div padre lo maneja
+                          style={{ cursor: 'zoom-in', pointerEvents: 'none' }}
                         />
                       </AnimatePresence>
                     ) : (
@@ -205,7 +215,8 @@ const PropertyModal = ({ property, onClose }) => {
                     {images.length > 1 && (
                       <>
                         <button
-                          onClick={(e) => { e.stopPropagation(); prev(); }}
+                          onClick={(e) => { e.stopPropagation(); e.nativeEvent?.stopImmediatePropagation(); prev(); }}
+                          onTouchEnd={(e) => { e.stopPropagation(); prev(); touchStartX.current = null; touchMoved.current = false; }}
                           className="absolute left-0 top-1/4 bottom-1/4 w-12 z-10 flex items-center justify-center"
                           style={{ background: 'linear-gradient(to right, rgba(0,0,0,0.40), transparent)' }}
                           aria-label="Anterior"
@@ -214,7 +225,8 @@ const PropertyModal = ({ property, onClose }) => {
                         </button>
 
                         <button
-                          onClick={(e) => { e.stopPropagation(); next(); }}
+                          onClick={(e) => { e.stopPropagation(); e.nativeEvent?.stopImmediatePropagation(); next(); }}
+                          onTouchEnd={(e) => { e.stopPropagation(); next(); touchStartX.current = null; touchMoved.current = false; }}
                           className="absolute right-0 top-1/4 bottom-1/4 w-12 z-10 flex items-center justify-center"
                           style={{ background: 'linear-gradient(to left, rgba(0,0,0,0.40), transparent)' }}
                           aria-label="Siguiente"
