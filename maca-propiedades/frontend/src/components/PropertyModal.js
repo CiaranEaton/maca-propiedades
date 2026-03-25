@@ -27,12 +27,16 @@ const PropertyModal = ({ property, onClose }) => {
   const [index, setIndex] = useState(0);
   const [zoomed, setZoomed] = useState(false);
 
-  // Refs para swipe en el área de imagen
+  // Ref para leer zoomed dentro de callbacks sin que quede stale
+  const zoomedRef = useRef(false);
+  useEffect(() => { zoomedRef.current = zoomed; }, [zoomed]);
+
+  // Refs para swipe en imagen principal
   const touchStartX = useRef(null);
   const touchStartY = useRef(null);
   const touchMoved = useRef(false);
 
-  // Refs para swipe en el lightbox
+  // Refs para swipe en lightbox
   const lbTouchStartX = useRef(null);
 
   const images = property?.image_urls?.length
@@ -44,49 +48,53 @@ const PropertyModal = ({ property, onClose }) => {
 
   useEffect(() => { setIndex(0); setZoomed(false); }, [property]);
 
+  // Escape key
   useEffect(() => {
     if (!property) return;
     const handler = (e) => {
-      if (e.key === 'Escape') { zoomed ? setZoomed(false) : onClose(); }
+      if (e.key === 'Escape') {
+        if (zoomedRef.current) setZoomed(false);
+        else onClose();
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [property, zoomed, onClose]);
+  }, [property, onClose]);
 
+  // Bloquear scroll
   useEffect(() => {
     document.body.style.overflow = property ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
   }, [property]);
 
+  // Historial del navegador (botón atrás cierra modal)
+  // ─────────────────────────────────────────────────────────────────────────
+  // BUG RAÍZ CORREGIDO: "zoomed" NO debe estar en las dependencias.
+  // Antes, cada vez que setZoomed(true) cambiaba el estado, React ejecutaba
+  // el cleanup del efecto, que llamaba window.history.back(), disparando
+  // popstate → onClose(). El zoom abría y cerraba en el mismo ciclo de render.
+  // Solución: usar zoomedRef (siempre actualizado) dentro del callback,
+  // sin agregar zoomed como dependencia del efecto.
+  // ─────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!property) return;
     window.history.pushState({ modal: true }, '');
     const handlePopState = () => {
-      if (zoomed) { setZoomed(false); window.history.pushState({ modal: true }, ''); }
-      else { onClose(); }
+      if (zoomedRef.current) {
+        setZoomed(false);
+        window.history.pushState({ modal: true }, '');
+      } else {
+        onClose();
+      }
     };
     window.addEventListener('popstate', handlePopState);
     return () => {
       window.removeEventListener('popstate', handlePopState);
       if (window.history.state?.modal) window.history.back();
     };
-  }, [property, zoomed, onClose]);
+  }, [property, onClose]); // ← zoomed eliminado de dependencias ✅
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Handlers para el BOTÓN INVISIBLE de zoom/swipe sobre la imagen
-  //
-  // El bug anterior era el "ghost click":
-  //   1. touchEnd dispara → setZoomed(true) → lightbox aparece
-  //   2. El navegador móvil genera un click sintético 300ms después
-  //   3. Ese ghost click cae sobre el lightbox → onClick={() => setZoomed(false)}
-  //   4. El lightbox se cierra instantáneamente
-  //
-  // Solución: NO llamar setZoomed en touchEnd.
-  // En tap limpio (sin movimiento) → no hacemos nada → el navegador genera
-  // el click normal → onClick del botón abre el zoom. Sin ghost click.
-  // En swipe → llamamos e.preventDefault() para matar el ghost click ANTES
-  // de que se genere, y cambiamos la imagen.
-  // ─────────────────────────────────────────────────────────────────────────
+  // ── Touch handlers para área de imagen ───────────────────────────────────
   const onImgTouchStart = (e) => {
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
@@ -105,20 +113,18 @@ const PropertyModal = ({ property, onClose }) => {
     const dx = e.changedTouches[0].clientX - touchStartX.current;
     const dy = e.changedTouches[0].clientY - touchStartY.current;
     const wasMoved = touchMoved.current;
-
     touchStartX.current = null;
     touchStartY.current = null;
     touchMoved.current = false;
 
     if (wasMoved && Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
-      // Fue swipe → matar ghost click y cambiar imagen
-      e.preventDefault();
+      e.preventDefault(); // mata el ghost click en swipe
       if (dx < 0) next(); else prev();
     }
-    // Tap limpio → no hacer nada → el browser genera click → onClick abre zoom ✅
+    // Tap limpio → el browser genera click → onClick abre zoom ✅
   };
 
-  // Swipe dentro del lightbox
+  // ── Touch handlers para lightbox ─────────────────────────────────────────
   const onLbTouchStart = (e) => { lbTouchStartX.current = e.touches[0].clientX; };
   const onLbTouchEnd = (e) => {
     if (lbTouchStartX.current === null) return;
@@ -192,16 +198,16 @@ const PropertyModal = ({ property, onClose }) => {
 
               <div className="flex flex-col md:flex-row overflow-hidden flex-1 min-h-0">
 
-                {/* ── PANEL DE IMÁGENES ──────────────────────────────── */}
+                {/* ── PANEL DE IMÁGENES ────────────────────────────────── */}
                 <div className="w-full md:w-[52%] flex-shrink-0 bg-slate-900 flex flex-col">
 
+                  {/* Área de imagen */}
                   <div
                     className="relative overflow-hidden flex-1"
                     style={{ aspectRatio: '16/10', minHeight: '200px' }}
                   >
                     {images.length > 0 ? (
                       <>
-                        {/* Imagen — sin eventos propios */}
                         <AnimatePresence mode="wait">
                           <motion.img
                             key={index}
@@ -217,12 +223,7 @@ const PropertyModal = ({ property, onClose }) => {
                           />
                         </AnimatePresence>
 
-                        {/*
-                          BOTÓN TRANSPARENTE — zoom + swipe
-                          z-[5]: por encima de la imagen pero debajo de los botones nav (z-10)
-                          onClick: abre el lightbox (funciona en desktop y en tap móvil)
-                          onTouchEnd: si fue swipe mata el ghost click con preventDefault
-                        */}
+                        {/* Botón invisible de zoom + swipe — z-[5] */}
                         <button
                           className="absolute inset-0 w-full h-full z-[5]"
                           style={{ cursor: 'zoom-in', background: 'transparent', border: 'none' }}
@@ -252,15 +253,11 @@ const PropertyModal = ({ property, onClose }) => {
                             >
                               <ChevronRight size={24} className="text-white drop-shadow" />
                             </button>
-                            <div className="absolute bottom-3 right-3 bg-black/60 text-white text-xs px-2 py-1 rounded-full z-10 pointer-events-none">
+                            <div className="absolute bottom-2 right-3 bg-black/50 text-white text-xs px-2 py-0.5 rounded-full z-10 pointer-events-none">
                               {index + 1}/{images.length}
                             </div>
                           </>
                         )}
-
-                        <div className="absolute bottom-3 left-3 bg-black/40 text-white text-xs px-2 py-1 rounded-full z-10 pointer-events-none flex items-center gap-1">
-                          🔍 Toca para ampliar
-                        </div>
                       </>
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-slate-500">
@@ -268,6 +265,13 @@ const PropertyModal = ({ property, onClose }) => {
                       </div>
                     )}
                   </div>
+
+                  {/* Hint sutil debajo de la imagen */}
+                  {images.length > 0 && (
+                    <p className="text-center text-[10px] text-slate-400 py-1 bg-slate-900 tracking-wide select-none">
+                      click para aumentar
+                    </p>
+                  )}
 
                   {/* Thumbnails */}
                   {images.length > 1 && (
@@ -285,7 +289,7 @@ const PropertyModal = ({ property, onClose }) => {
                   )}
                 </div>
 
-                {/* ── PANEL DE INFORMACIÓN ──────────────────────────── */}
+                {/* ── PANEL DE INFORMACIÓN ─────────────────────────────── */}
                 <div className="flex flex-col flex-1 min-h-0 overflow-y-auto">
                   <div className="p-5 md:p-6 flex flex-col gap-4 flex-1">
 
@@ -386,7 +390,7 @@ const PropertyModal = ({ property, onClose }) => {
             </div>
           </motion.div>
 
-          {/* ── LIGHTBOX ──────────────────────────────────────────────── */}
+          {/* ── LIGHTBOX ────────────────────────────────────────────────── */}
           {zoomed && (
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
