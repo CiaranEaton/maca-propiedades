@@ -26,10 +26,14 @@ const formatInline = (text) => text
 const PropertyModal = ({ property, onClose }) => {
   const [index, setIndex] = useState(0);
   const [zoomed, setZoomed] = useState(false);
+
+  // Refs para swipe en el área de imagen
   const touchStartX = useRef(null);
   const touchStartY = useRef(null);
-  // Para distinguir tap vs swipe
   const touchMoved = useRef(false);
+
+  // Refs para swipe en el lightbox
+  const lbTouchStartX = useRef(null);
 
   const images = property?.image_urls?.length
     ? property.image_urls
@@ -42,14 +46,15 @@ const PropertyModal = ({ property, onClose }) => {
 
   useEffect(() => {
     if (!property) return;
-    const handler = (e) => { if (e.key === 'Escape') { zoomed ? setZoomed(false) : onClose(); } };
+    const handler = (e) => {
+      if (e.key === 'Escape') { zoomed ? setZoomed(false) : onClose(); }
+    };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [property, zoomed, onClose]);
 
   useEffect(() => {
-    if (property) { document.body.style.overflow = 'hidden'; }
-    else { document.body.style.overflow = ''; }
+    document.body.style.overflow = property ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
   }, [property]);
 
@@ -67,44 +72,70 @@ const PropertyModal = ({ property, onClose }) => {
     };
   }, [property, zoomed, onClose]);
 
-  // ── Swipe handlers ──────────────────────────────────────────────────────────
-  // touchMoved nos permite saber si fue un tap real o un swipe,
-  // así el zoom funciona en móvil aunque los botones laterales existan.
-  const handleTouchStart = (e) => {
+  // ─────────────────────────────────────────────────────────────────────────
+  // Handlers para el BOTÓN INVISIBLE de zoom/swipe sobre la imagen
+  //
+  // El bug anterior era el "ghost click":
+  //   1. touchEnd dispara → setZoomed(true) → lightbox aparece
+  //   2. El navegador móvil genera un click sintético 300ms después
+  //   3. Ese ghost click cae sobre el lightbox → onClick={() => setZoomed(false)}
+  //   4. El lightbox se cierra instantáneamente
+  //
+  // Solución: NO llamar setZoomed en touchEnd.
+  // En tap limpio (sin movimiento) → no hacemos nada → el navegador genera
+  // el click normal → onClick del botón abre el zoom. Sin ghost click.
+  // En swipe → llamamos e.preventDefault() para matar el ghost click ANTES
+  // de que se genere, y cambiamos la imagen.
+  // ─────────────────────────────────────────────────────────────────────────
+  const onImgTouchStart = (e) => {
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
     touchMoved.current = false;
   };
 
-  const handleTouchMove = (e) => {
+  const onImgTouchMove = (e) => {
     if (touchStartX.current === null) return;
-    const deltaX = Math.abs(e.touches[0].clientX - touchStartX.current);
-    const deltaY = Math.abs(e.touches[0].clientY - touchStartY.current);
-    if (deltaX > 8 || deltaY > 8) touchMoved.current = true;
+    const dx = Math.abs(e.touches[0].clientX - touchStartX.current);
+    const dy = Math.abs(e.touches[0].clientY - touchStartY.current);
+    if (dx > 8 || dy > 8) touchMoved.current = true;
   };
 
-  const handleTouchEnd = (e) => {
+  const onImgTouchEnd = (e) => {
     if (touchStartX.current === null) return;
-    const deltaX = e.changedTouches[0].clientX - touchStartX.current;
-    const deltaY = e.changedTouches[0].clientY - touchStartY.current;
-
-    if (touchMoved.current && Math.abs(deltaX) > 40 && Math.abs(deltaX) > Math.abs(deltaY)) {
-      // Fue swipe → cambiar imagen
-      if (deltaX < 0) next();
-      else prev();
-    }
-    // Si NO hubo movimiento apreciable → fue tap → zoom lo maneja onClick de la imagen
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    const dy = e.changedTouches[0].clientY - touchStartY.current;
+    const wasMoved = touchMoved.current;
 
     touchStartX.current = null;
     touchStartY.current = null;
     touchMoved.current = false;
+
+    if (wasMoved && Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
+      // Fue swipe → matar ghost click y cambiar imagen
+      e.preventDefault();
+      if (dx < 0) next(); else prev();
+    }
+    // Tap limpio → no hacer nada → el browser genera click → onClick abre zoom ✅
+  };
+
+  // Swipe dentro del lightbox
+  const onLbTouchStart = (e) => { lbTouchStartX.current = e.touches[0].clientX; };
+  const onLbTouchEnd = (e) => {
+    if (lbTouchStartX.current === null) return;
+    const dx = e.changedTouches[0].clientX - lbTouchStartX.current;
+    lbTouchStartX.current = null;
+    if (Math.abs(dx) > 50) {
+      e.preventDefault();
+      if (dx < 0) next(); else prev();
+    }
   };
 
   if (!property) return null;
 
   const currencySymbol = CURRENCY_SYMBOLS[property.currency] || '$';
   const priceDisplay = `${currencySymbol} ${property.price}`;
-  const originalPriceDisplay = property.original_price ? `${currencySymbol} ${property.original_price}` : null;
+  const originalPriceDisplay = property.original_price
+    ? `${currencySymbol} ${property.original_price}` : null;
 
   const whatsappUrl = `https://wa.me/56954327446?text=${encodeURIComponent(
     `Hola, me interesa la propiedad: ${property.title} en ${property.commune ? property.commune + ', ' : ''}${property.region || property.location || ''}`
@@ -126,10 +157,18 @@ const PropertyModal = ({ property, onClose }) => {
     <AnimatePresence>
       {property && (
         <>
-          <motion.div key="backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            transition={{ duration: 0.25 }} className="fixed inset-0 bg-black/70 z-50" onClick={onClose} />
+          {/* Backdrop */}
+          <motion.div
+            key="backdrop"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="fixed inset-0 bg-black/70 z-50"
+            onClick={onClose}
+          />
 
-          <motion.div key="modal"
+          {/* Modal */}
+          <motion.div
+            key="modal"
             initial={{ opacity: 0, y: 60, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 40, scale: 0.97 }}
@@ -141,108 +180,91 @@ const PropertyModal = ({ property, onClose }) => {
               style={{ maxHeight: '92vh' }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="h-1 w-full flex-shrink-0" style={{ background: 'linear-gradient(90deg, #1a5f7a, #00bcd4, #9acd32)' }} />
+              <div className="h-1 w-full flex-shrink-0"
+                style={{ background: 'linear-gradient(90deg, #1a5f7a, #00bcd4, #9acd32)' }} />
 
-              <button onClick={onClose} className="absolute top-4 right-4 bg-white hover:bg-slate-100 border border-slate-200 p-1.5 rounded-full shadow-sm z-20 transition">
+              <button
+                onClick={onClose}
+                className="absolute top-4 right-4 bg-white hover:bg-slate-100 border border-slate-200 p-1.5 rounded-full shadow-sm z-20 transition"
+              >
                 <X size={18} className="text-slate-600" />
               </button>
 
               <div className="flex flex-col md:flex-row overflow-hidden flex-1 min-h-0">
 
-                {/* ── IMÁGENES ─────────────────────────────────────────────── */}
+                {/* ── PANEL DE IMÁGENES ──────────────────────────────── */}
                 <div className="w-full md:w-[52%] flex-shrink-0 bg-slate-900 flex flex-col">
 
-                  {/*
-                    FIX 1 — Sin maxHeight fijo: el área de imagen ocupa todo el
-                    espacio disponible en desktop (flex-1) y en móvil usa una
-                    altura proporcional (aspect-ratio) para que nunca quede
-                    espacio negro abajo.
-                  */}
                   <div
-                    className="relative overflow-hidden select-none flex-1"
-                    style={{
-                      aspectRatio: '16/10',
-                      minHeight: '200px',
-                    }}
-                    onTouchStart={handleTouchStart}
-                    onTouchMove={handleTouchMove}
-                    onTouchEnd={(e) => {
-                      // Paramos el burbujeo SIEMPRE para que nunca llegue al backdrop
-                      e.stopPropagation();
-                      // Si fue un tap limpio (sin movimiento) → abrir zoom
-                      if (!touchMoved.current) {
-                        setZoomed(true);
-                        touchStartX.current = null;
-                        touchStartY.current = null;
-                        touchMoved.current = false;
-                        return;
-                      }
-                      // Si fue swipe → manejar normalmente
-                      handleTouchEnd(e);
-                    }}
-                    // En desktop: click directo en el div abre zoom
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setZoomed(true);
-                    }}
+                    className="relative overflow-hidden flex-1"
+                    style={{ aspectRatio: '16/10', minHeight: '200px' }}
                   >
                     {images.length > 0 ? (
-                      <AnimatePresence mode="wait">
-                        <motion.img
-                          key={index}
-                          src={images[index]}
-                          alt={property.title}
-                          initial={{ opacity: 0, x: 30 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          exit={{ opacity: 0, x: -30 }}
-                          transition={{ duration: 0.25 }}
-                          className="w-full h-full object-contain absolute inset-0 bg-slate-900"
-                          draggable={false}
-                          // No necesita onClick propio — el div padre lo maneja
-                          style={{ cursor: 'zoom-in', pointerEvents: 'none' }}
-                        />
-                      </AnimatePresence>
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-slate-500">Sin imágenes</div>
-                    )}
-
-                    {/*
-                      FIX 3 — Botones laterales solo en la mitad central (top-1/4
-                      bottom-1/4) para que el tap en el centro de la imagen
-                      llegue limpio al onClick de zoom, tanto en desktop
-                      como en móvil.
-                    */}
-                    {images.length > 1 && (
                       <>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); e.nativeEvent?.stopImmediatePropagation(); prev(); }}
-                          onTouchEnd={(e) => { e.stopPropagation(); prev(); touchStartX.current = null; touchMoved.current = false; }}
-                          className="absolute left-0 top-1/4 bottom-1/4 w-12 z-10 flex items-center justify-center"
-                          style={{ background: 'linear-gradient(to right, rgba(0,0,0,0.40), transparent)' }}
-                          aria-label="Anterior"
-                        >
-                          <ChevronLeft size={24} className="text-white drop-shadow" />
-                        </button>
+                        {/* Imagen — sin eventos propios */}
+                        <AnimatePresence mode="wait">
+                          <motion.img
+                            key={index}
+                            src={images[index]}
+                            alt={property.title}
+                            initial={{ opacity: 0, x: 30 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -30 }}
+                            transition={{ duration: 0.25 }}
+                            className="absolute inset-0 w-full h-full object-contain bg-slate-900"
+                            draggable={false}
+                            style={{ pointerEvents: 'none', userSelect: 'none' }}
+                          />
+                        </AnimatePresence>
 
+                        {/*
+                          BOTÓN TRANSPARENTE — zoom + swipe
+                          z-[5]: por encima de la imagen pero debajo de los botones nav (z-10)
+                          onClick: abre el lightbox (funciona en desktop y en tap móvil)
+                          onTouchEnd: si fue swipe mata el ghost click con preventDefault
+                        */}
                         <button
-                          onClick={(e) => { e.stopPropagation(); e.nativeEvent?.stopImmediatePropagation(); next(); }}
-                          onTouchEnd={(e) => { e.stopPropagation(); next(); touchStartX.current = null; touchMoved.current = false; }}
-                          className="absolute right-0 top-1/4 bottom-1/4 w-12 z-10 flex items-center justify-center"
-                          style={{ background: 'linear-gradient(to left, rgba(0,0,0,0.40), transparent)' }}
-                          aria-label="Siguiente"
-                        >
-                          <ChevronRight size={24} className="text-white drop-shadow" />
-                        </button>
+                          className="absolute inset-0 w-full h-full z-[5]"
+                          style={{ cursor: 'zoom-in', background: 'transparent', border: 'none' }}
+                          onClick={() => setZoomed(true)}
+                          onTouchStart={onImgTouchStart}
+                          onTouchMove={onImgTouchMove}
+                          onTouchEnd={onImgTouchEnd}
+                          aria-label="Ampliar imagen"
+                        />
 
-                        <div className="absolute bottom-3 right-3 bg-black/60 text-white text-xs px-2 py-1 rounded-full z-10 pointer-events-none">
-                          {index + 1}/{images.length}
+                        {/* Botones de navegación — z-10 */}
+                        {images.length > 1 && (
+                          <>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); prev(); }}
+                              className="absolute left-0 top-0 bottom-0 w-12 z-10 flex items-center justify-center"
+                              style={{ background: 'linear-gradient(to right, rgba(0,0,0,0.40), transparent)' }}
+                              aria-label="Imagen anterior"
+                            >
+                              <ChevronLeft size={24} className="text-white drop-shadow" />
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); next(); }}
+                              className="absolute right-0 top-0 bottom-0 w-12 z-10 flex items-center justify-center"
+                              style={{ background: 'linear-gradient(to left, rgba(0,0,0,0.40), transparent)' }}
+                              aria-label="Imagen siguiente"
+                            >
+                              <ChevronRight size={24} className="text-white drop-shadow" />
+                            </button>
+                            <div className="absolute bottom-3 right-3 bg-black/60 text-white text-xs px-2 py-1 rounded-full z-10 pointer-events-none">
+                              {index + 1}/{images.length}
+                            </div>
+                          </>
+                        )}
+
+                        <div className="absolute bottom-3 left-3 bg-black/40 text-white text-xs px-2 py-1 rounded-full z-10 pointer-events-none flex items-center gap-1">
+                          🔍 Toca para ampliar
                         </div>
                       </>
-                    )}
-
-                    {images.length > 0 && (
-                      <div className="absolute bottom-3 left-3 bg-black/40 text-white text-xs px-2 py-1 rounded-full z-10 pointer-events-none flex items-center gap-1">
-                        🔍 Toca para ampliar
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-slate-500">
+                        Sin imágenes
                       </div>
                     )}
                   </div>
@@ -263,7 +285,7 @@ const PropertyModal = ({ property, onClose }) => {
                   )}
                 </div>
 
-                {/* ── INFO ─────────────────────────────────────────────────── */}
+                {/* ── PANEL DE INFORMACIÓN ──────────────────────────── */}
                 <div className="flex flex-col flex-1 min-h-0 overflow-y-auto">
                   <div className="p-5 md:p-6 flex flex-col gap-4 flex-1">
 
@@ -287,17 +309,28 @@ const PropertyModal = ({ property, onClose }) => {
 
                     <div>
                       <div className="flex gap-2 flex-wrap mb-3">
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${property.status === 'Venta' ? 'bg-[#9acd32] text-white' : 'bg-[#00bcd4] text-white'}`}>{property.status}</span>
-                        <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide bg-slate-100 text-[#1a5f7a]">{property.type}</span>
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${property.status === 'Venta' ? 'bg-[#9acd32] text-white' : 'bg-[#00bcd4] text-white'}`}>
+                          {property.status}
+                        </span>
+                        <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide bg-slate-100 text-[#1a5f7a]">
+                          {property.type}
+                        </span>
                       </div>
-                      <h2 className="text-xl md:text-2xl font-bold text-[#1a5f7a] leading-tight mb-2">{property.title}</h2>
+                      <h2 className="text-xl md:text-2xl font-bold text-[#1a5f7a] leading-tight mb-2">
+                        {property.title}
+                      </h2>
                       <div className="flex items-center gap-1.5 text-slate-500">
                         <MapPin size={14} className="text-[#00bcd4] flex-shrink-0" />
-                        <span className="text-sm">{property.commune ? `${property.commune}, ` : ''}{property.region || property.location}</span>
+                        <span className="text-sm">
+                          {property.commune ? `${property.commune}, ` : ''}
+                          {property.region || property.location}
+                        </span>
                       </div>
                     </div>
 
-                    <div className={`rounded-xl px-4 py-3 border ${property.on_offer ? 'bg-gradient-to-r from-[#9acd32]/10 to-[#7cb342]/5 border-[#9acd32]/30' : 'bg-gradient-to-r from-[#1a5f7a]/5 to-[#00bcd4]/5 border-[#1a5f7a]/10'}`}>
+                    <div className={`rounded-xl px-4 py-3 border ${property.on_offer
+                      ? 'bg-gradient-to-r from-[#9acd32]/10 to-[#7cb342]/5 border-[#9acd32]/30'
+                      : 'bg-gradient-to-r from-[#1a5f7a]/5 to-[#00bcd4]/5 border-[#1a5f7a]/10'}`}>
                       <p className="text-xs text-slate-400 uppercase tracking-wide font-medium mb-1">Precio</p>
                       {property.on_offer && originalPriceDisplay && (
                         <p className="text-base text-slate-400 line-through mb-0.5">{originalPriceDisplay}</p>
@@ -318,8 +351,12 @@ const PropertyModal = ({ property, onClose }) => {
                         <InfoChip icon={Bed} label="Dormitorios" value={property.bedrooms} color="#1a5f7a" />
                         <InfoChip icon={Bath} label="Baños" value={property.bathrooms} color="#00bcd4" />
                         <InfoChip icon={Car} label="Estacionam." value={property.parking} color="#9acd32" />
-                        <InfoChip icon={Maximize2} label="M² construidos" value={property.area_built ? `${property.area_built} m²` : (property.area ? `${property.area} m²` : null)} color="#f59e0b" />
-                        <InfoChip icon={Maximize2} label="M² totales" value={property.area_total ? `${property.area_total} m²` : null} color="#10b981" />
+                        <InfoChip icon={Maximize2} label="M² construidos"
+                          value={property.area_built ? `${property.area_built} m²` : (property.area ? `${property.area} m²` : null)}
+                          color="#f59e0b" />
+                        <InfoChip icon={Maximize2} label="M² totales"
+                          value={property.area_total ? `${property.area_total} m²` : null}
+                          color="#10b981" />
                         <InfoChip icon={Layers} label="Pisos" value={property.floors} color="#8b5cf6" />
                       </div>
                     </div>
@@ -327,14 +364,20 @@ const PropertyModal = ({ property, onClose }) => {
                     {property.description && (
                       <div>
                         <p className="text-xs text-slate-400 uppercase tracking-wide font-medium mb-2">Descripción</p>
-                        <div className="text-sm text-slate-600 leading-relaxed">{renderMarkdown(property.description)}</div>
+                        <div className="text-sm text-slate-600 leading-relaxed">
+                          {renderMarkdown(property.description)}
+                        </div>
                       </div>
                     )}
                   </div>
 
                   <div className="p-4 md:p-5 border-t border-slate-100 flex-shrink-0">
-                    <a href={whatsappUrl} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-2 w-full bg-green-500 hover:bg-green-600 text-white px-6 py-3.5 rounded-xl font-semibold transition text-center shadow-sm hover:shadow-md">
+                    <a
+                      href={whatsappUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 w-full bg-green-500 hover:bg-green-600 text-white px-6 py-3.5 rounded-xl font-semibold transition text-center shadow-sm hover:shadow-md"
+                    >
                       Me interesa — WhatsApp
                     </a>
                   </div>
@@ -343,31 +386,44 @@ const PropertyModal = ({ property, onClose }) => {
             </div>
           </motion.div>
 
-          {/* ── LIGHTBOX ───────────────────────────────────────────────────── */}
+          {/* ── LIGHTBOX ──────────────────────────────────────────────── */}
           {zoomed && (
             <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
               className="fixed inset-0 bg-black/95 z-[60] flex items-center justify-center p-4"
-              onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={handleTouchEnd}
               onClick={() => setZoomed(false)}
+              onTouchStart={onLbTouchStart}
+              onTouchEnd={onLbTouchEnd}
             >
-              <button onClick={() => setZoomed(false)} className="absolute top-4 right-4 bg-white/20 hover:bg-white/30 text-white p-2 rounded-full transition z-10">
+              <button
+                onClick={() => setZoomed(false)}
+                className="absolute top-4 right-4 bg-white/20 hover:bg-white/30 text-white p-2 rounded-full transition z-10"
+              >
                 <X size={22} />
               </button>
+
               {images.length > 1 && (
                 <>
-                  <button onClick={(e) => { e.stopPropagation(); prev(); }}
-                    className="absolute left-0 top-0 bottom-0 w-16 flex items-center justify-start pl-3 z-10">
-                    <span className="bg-white/20 hover:bg-white/30 text-white p-3 rounded-full transition"><ChevronLeft size={26} /></span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); prev(); }}
+                    className="absolute left-0 top-0 bottom-0 w-16 flex items-center justify-start pl-3 z-10"
+                  >
+                    <span className="bg-white/20 hover:bg-white/30 text-white p-3 rounded-full transition">
+                      <ChevronLeft size={26} />
+                    </span>
                   </button>
-                  <button onClick={(e) => { e.stopPropagation(); next(); }}
-                    className="absolute right-0 top-0 bottom-0 w-16 flex items-center justify-end pr-3 z-10">
-                    <span className="bg-white/20 hover:bg-white/30 text-white p-3 rounded-full transition"><ChevronRight size={26} /></span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); next(); }}
+                    className="absolute right-0 top-0 bottom-0 w-16 flex items-center justify-end pr-3 z-10"
+                  >
+                    <span className="bg-white/20 hover:bg-white/30 text-white p-3 rounded-full transition">
+                      <ChevronRight size={26} />
+                    </span>
                   </button>
                 </>
               )}
+
               <img
                 src={images[index]}
                 alt={property.title}
@@ -375,7 +431,10 @@ const PropertyModal = ({ property, onClose }) => {
                 onClick={(e) => e.stopPropagation()}
                 draggable={false}
               />
-              <p className="absolute bottom-5 text-white/60 text-sm">{index + 1} / {images.length}</p>
+
+              <p className="absolute bottom-5 text-white/60 text-sm pointer-events-none">
+                {index + 1} / {images.length}
+              </p>
             </motion.div>
           )}
         </>
