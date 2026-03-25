@@ -40,7 +40,8 @@ const emptyForm = {
   area: '', area_built: '', area_total: '',
   region: '', commune: '',
   image_urls: [], description: '',
-  featured: false, on_offer: false
+  featured: false, on_offer: false,
+  original_price: ''
 };
 
 const formatNumber = (val) => {
@@ -246,6 +247,32 @@ const AdminModal = ({ isOpen, onClose, editProperty, onSuccess }) => {
               </div>
             </button>
           </div>
+
+
+          {/* PRECIO ORIGINAL — solo visible si está en oferta */}
+          {formData.on_offer && (
+            <div className="bg-[#9acd32]/5 border border-[#9acd32]/30 rounded-2xl p-4">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Precio original <span className="text-slate-400 font-normal">(antes de la oferta)</span>
+              </label>
+              <div className="flex gap-3">
+                <div className="px-4 py-3 border border-slate-300 rounded-xl bg-white font-medium text-[#1a5f7a] min-w-[110px] flex items-center">
+                  {CURRENCIES.find(c => c.value === formData.currency)?.symbol || '$'}
+                </div>
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    name="original_price"
+                    value={formData.original_price}
+                    onChange={(e) => setFormData(prev => ({ ...prev, original_price: formatNumber(e.target.value) }))}
+                    className={inputClass}
+                    placeholder="Ej: 65.000.000"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-slate-400 mt-1">Este precio aparecerá tachado en la card y la modal indicando el descuento</p>
+            </div>
+          )}
 
           {/* TIPO Y ESTADO */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
