@@ -33,7 +33,6 @@ class CORSMiddleware(BaseHTTPMiddleware):
         return response
 
 app.add_middleware(CORSMiddleware)
-
 api_router = APIRouter(prefix="/api")
 
 
@@ -44,6 +43,7 @@ class Property(BaseModel):
     type: str
     status: str
     price: str
+    original_price: Optional[str] = ""
     currency: Optional[str] = "CLP"
     bedrooms: int
     bathrooms: int
@@ -67,6 +67,7 @@ class PropertyCreate(BaseModel):
     type: str
     status: str
     price: str
+    original_price: Optional[str] = ""
     currency: Optional[str] = "CLP"
     bedrooms: int
     bathrooms: int
@@ -89,6 +90,7 @@ class PropertyUpdate(BaseModel):
     type: Optional[str] = None
     status: Optional[str] = None
     price: Optional[str] = None
+    original_price: Optional[str] = None
     currency: Optional[str] = None
     bedrooms: Optional[int] = None
     bathrooms: Optional[int] = None
@@ -117,7 +119,6 @@ async def get_properties():
     for prop in properties:
         if isinstance(prop.get('created_at'), str):
             prop['created_at'] = datetime.fromisoformat(prop['created_at'])
-    # Ordenar: destacadas primero, luego ofertas, luego el resto
     properties.sort(key=lambda p: (
         not p.get('featured', False),
         not p.get('on_offer', False)
@@ -161,10 +162,8 @@ async def delete_property(property_id: str):
 
 
 app.include_router(api_router)
-
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
-
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
