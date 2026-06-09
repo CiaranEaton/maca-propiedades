@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Upload, Image, Trash2, ChevronLeft, ChevronRight, Star, Tag } from 'lucide-react';
+import { X, Upload, Image, Trash2, ChevronLeft, ChevronRight, Star, Tag, CheckCircle, GripVertical } from 'lucide-react';
 import axios from 'axios';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -40,7 +40,7 @@ const emptyForm = {
   area: '', area_built: '', area_total: '',
   region: '', commune: '',
   image_urls: [], description: '',
-  featured: false, on_offer: false,
+  featured: false, on_offer: false, sold: false,  // ← sold agregado
   original_price: ''
 };
 
@@ -55,6 +55,11 @@ const AdminModal = ({ isOpen, onClose, editProperty, onSuccess }) => {
   const [uploading, setUploading] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const fileInputRef = useRef(null);
+
+  // ── Drag & drop refs ────────────────────────────────────────────────────
+  const dragIndex = useRef(null);
+  const dragOverIndex = useRef(null);
+  const [dragOverIdx, setDragOverIdx] = useState(null); // para highlight visual
 
   useEffect(() => {
     if (editProperty) {
@@ -110,6 +115,48 @@ const AdminModal = ({ isOpen, onClose, editProperty, onSuccess }) => {
     setCurrentImageIndex(prev => Math.max(0, prev - 1));
   };
 
+  // ── Drag & drop handlers ────────────────────────────────────────────────
+  const handleDragStart = (e, index) => {
+    dragIndex.current = index;
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e, index) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    dragOverIndex.current = index;
+    setDragOverIdx(index);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverIdx(null);
+  };
+
+  const handleDrop = (e, index) => {
+    e.preventDefault();
+    if (dragIndex.current === null || dragIndex.current === index) {
+      setDragOverIdx(null);
+      return;
+    }
+    setFormData(prev => {
+      const newUrls = [...prev.image_urls];
+      const dragged = newUrls.splice(dragIndex.current, 1)[0];
+      newUrls.splice(index, 0, dragged);
+      return { ...prev, image_urls: newUrls };
+    });
+    // Si la imagen destacada (index 0) cambia, actualizamos la vista
+    setCurrentImageIndex(index);
+    dragIndex.current = null;
+    dragOverIndex.current = null;
+    setDragOverIdx(null);
+  };
+
+  const handleDragEnd = () => {
+    dragIndex.current = null;
+    dragOverIndex.current = null;
+    setDragOverIdx(null);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.image_urls.length) { alert('Por favor sube al menos una foto de la propiedad.'); return; }
@@ -148,39 +195,99 @@ const AdminModal = ({ isOpen, onClose, editProperty, onSuccess }) => {
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
 
-          {/* GALERÍA */}
+          {/* ── GALERÍA ─────────────────────────────────────────────────── */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
               Fotos * <span className="text-slate-400 font-normal">({formData.image_urls.length}/12)</span>
             </label>
+
+            {/* Imagen principal */}
             {formData.image_urls.length > 0 && (
-              <div className="relative mb-3 rounded-2xl overflow-hidden bg-slate-100" style={{height: '220px'}}>
+              <div className="relative mb-3 rounded-2xl overflow-hidden bg-slate-100" style={{ height: '220px' }}>
                 <img src={formData.image_urls[currentImageIndex]} alt="" className="w-full h-full object-cover" />
-                <button type="button" onClick={() => removeImage(currentImageIndex)} className="absolute top-3 right-3 bg-red-500 hover:bg-red-600 text-white p-2 rounded-full shadow-lg transition-all"><Trash2 size={16} /></button>
+                {currentImageIndex === 0 && (
+                  <div className="absolute top-3 left-3 bg-[#1a5f7a] text-white text-xs font-bold px-2 py-1 rounded-full">
+                    Portada
+                  </div>
+                )}
+                <button type="button" onClick={() => removeImage(currentImageIndex)}
+                  className="absolute top-3 right-3 bg-red-500 hover:bg-red-600 text-white p-2 rounded-full shadow-lg transition-all">
+                  <Trash2 size={16} />
+                </button>
                 {formData.image_urls.length > 1 && (
                   <>
-                    <button type="button" onClick={() => setCurrentImageIndex(i => Math.max(0, i - 1))} className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white p-2 rounded-full"><ChevronLeft size={20} /></button>
-                    <button type="button" onClick={() => setCurrentImageIndex(i => Math.min(formData.image_urls.length - 1, i + 1))} className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white p-2 rounded-full"><ChevronRight size={20} /></button>
+                    <button type="button" onClick={() => setCurrentImageIndex(i => Math.max(0, i - 1))}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white p-2 rounded-full">
+                      <ChevronLeft size={20} />
+                    </button>
+                    <button type="button" onClick={() => setCurrentImageIndex(i => Math.min(formData.image_urls.length - 1, i + 1))}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white p-2 rounded-full">
+                      <ChevronRight size={20} />
+                    </button>
                     <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1">
-                      {formData.image_urls.map((_, i) => (<button key={i} type="button" onClick={() => setCurrentImageIndex(i)} className={`w-2 h-2 rounded-full transition-all ${i === currentImageIndex ? 'bg-white w-5' : 'bg-white/50'}`} />))}
+                      {formData.image_urls.map((_, i) => (
+                        <button key={i} type="button" onClick={() => setCurrentImageIndex(i)}
+                          className={`w-2 h-2 rounded-full transition-all ${i === currentImageIndex ? 'bg-white w-5' : 'bg-white/50'}`} />
+                      ))}
                     </div>
                   </>
                 )}
-                <div className="absolute bottom-3 right-3 bg-black/50 text-white text-xs px-2 py-1 rounded-full">{currentImageIndex + 1} / {formData.image_urls.length}</div>
+                <div className="absolute bottom-3 right-3 bg-black/50 text-white text-xs px-2 py-1 rounded-full">
+                  {currentImageIndex + 1} / {formData.image_urls.length}
+                </div>
               </div>
+            )}
+
+            {/* Grid de thumbnails con drag & drop */}
+            {formData.image_urls.length > 0 && (
+              <p className="text-xs text-slate-400 mb-2 flex items-center gap-1">
+                <GripVertical size={12} />
+                Arrastra las fotos para cambiar el orden. La primera es la portada.
+              </p>
             )}
             <div className="grid grid-cols-4 gap-2 mb-3">
               {formData.image_urls.map((url, i) => (
-                <div key={i} onClick={() => setCurrentImageIndex(i)} className={`cursor-pointer rounded-xl overflow-hidden aspect-square border-2 transition-all ${i === currentImageIndex ? 'border-[#1a5f7a]' : 'border-transparent'}`}>
-                  <img src={url} alt="" className="w-full h-full object-cover" />
+                <div
+                  key={url + i}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, i)}
+                  onDragOver={(e) => handleDragOver(e, i)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, i)}
+                  onDragEnd={handleDragEnd}
+                  onClick={() => setCurrentImageIndex(i)}
+                  className={`cursor-grab active:cursor-grabbing relative rounded-xl overflow-hidden aspect-square border-2 transition-all select-none
+                    ${i === currentImageIndex ? 'border-[#1a5f7a]' : 'border-transparent'}
+                    ${dragOverIdx === i ? 'border-[#9acd32] scale-105 shadow-lg' : ''}
+                    ${dragIndex.current === i ? 'opacity-40' : 'opacity-100'}
+                  `}
+                >
+                  <img src={url} alt="" className="w-full h-full object-cover pointer-events-none" draggable={false} />
+                  {/* Badge portada */}
+                  {i === 0 && (
+                    <div className="absolute bottom-0 left-0 right-0 bg-[#1a5f7a]/80 text-white text-[9px] font-bold text-center py-0.5">
+                      PORTADA
+                    </div>
+                  )}
+                  {/* Icono grip */}
+                  <div className="absolute top-1 right-1 bg-black/40 rounded-full p-0.5 pointer-events-none">
+                    <GripVertical size={10} className="text-white" />
+                  </div>
                 </div>
               ))}
+
+              {/* Botón agregar */}
               {formData.image_urls.length < 12 && (
-                <div onClick={() => fileInputRef.current.click()} className="cursor-pointer border-2 border-dashed border-slate-300 hover:border-[#1a5f7a] rounded-xl aspect-square flex flex-col items-center justify-center text-slate-400 hover:text-[#1a5f7a]">
-                  {uploading ? <div className="w-6 h-6 border-2 border-[#1a5f7a]/30 border-t-[#1a5f7a] rounded-full animate-spin" /> : <><Image size={24} /><span className="text-xs mt-1">Agregar</span></>}
+                <div onClick={() => fileInputRef.current.click()}
+                  className="cursor-pointer border-2 border-dashed border-slate-300 hover:border-[#1a5f7a] rounded-xl aspect-square flex flex-col items-center justify-center text-slate-400 hover:text-[#1a5f7a]">
+                  {uploading
+                    ? <div className="w-6 h-6 border-2 border-[#1a5f7a]/30 border-t-[#1a5f7a] rounded-full animate-spin" />
+                    : <><Image size={24} /><span className="text-xs mt-1">Agregar</span></>
+                  }
                 </div>
               )}
             </div>
+
             <button type="button" onClick={() => fileInputRef.current.click()} disabled={uploading || formData.image_urls.length >= 12}
               className="w-full py-3 border-2 border-dashed border-slate-300 hover:border-[#1a5f7a] rounded-xl text-slate-500 hover:text-[#1a5f7a] font-medium transition-all flex items-center justify-center gap-2 disabled:opacity-40">
               <Upload size={18} />{uploading ? 'Subiendo...' : 'Subir fotos (puedes seleccionar varias)'}
@@ -188,66 +295,89 @@ const AdminModal = ({ isOpen, onClose, editProperty, onSuccess }) => {
             <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleImageUpload} className="hidden" />
           </div>
 
-          {/* TÍTULO */}
+          {/* ── TÍTULO ──────────────────────────────────────────────────── */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Título *</label>
-            <input type="text" name="title" value={formData.title} onChange={handleChange} required className={inputClass} placeholder="Ej: VENDO LINDA CASA EN CHILLÁN !" />
+            <input type="text" name="title" value={formData.title} onChange={handleChange} required className={inputClass}
+              placeholder="Ej: VENDO LINDA CASA EN CHILLÁN !" />
           </div>
 
+          {/* ── DESTACADA / EN OFERTA / VENDIDO ─────────────────────────── */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
 
-          {/* DESTACADA / EN OFERTA */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <button
-              type="button"
+            {/* Destacada */}
+            <button type="button"
               onClick={() => setFormData(prev => ({ ...prev, featured: !prev.featured }))}
               className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all text-left ${
-                formData.featured
-                  ? 'border-[#1a5f7a] bg-[#1a5f7a]/5'
-                  : 'border-slate-200 hover:border-[#1a5f7a]/40'
+                formData.featured ? 'border-[#1a5f7a] bg-[#1a5f7a]/5' : 'border-slate-200 hover:border-[#1a5f7a]/40'
               }`}
             >
               <div className={`p-2 rounded-xl flex-shrink-0 ${formData.featured ? 'bg-[#1a5f7a]' : 'bg-slate-100'}`}>
                 <Star size={18} className={formData.featured ? 'text-white' : 'text-slate-400'} fill={formData.featured ? 'white' : 'none'} />
               </div>
-              <div>
-                <p className={`font-semibold text-sm ${formData.featured ? 'text-[#1a5f7a]' : 'text-slate-600'}`}>
-                  Propiedad Destacada
-                </p>
-                <p className="text-xs text-slate-400">Aparece primero en la galería</p>
+              <div className="flex-1 min-w-0">
+                <p className={`font-semibold text-sm ${formData.featured ? 'text-[#1a5f7a]' : 'text-slate-600'}`}>Destacada</p>
+                <p className="text-xs text-slate-400 leading-tight">Aparece primero</p>
               </div>
-              <div className={`ml-auto w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
                 formData.featured ? 'bg-[#1a5f7a] border-[#1a5f7a]' : 'border-slate-300'
               }`}>
                 {formData.featured && <div className="w-2 h-2 bg-white rounded-full" />}
               </div>
             </button>
 
-            <button
-              type="button"
+            {/* En Oferta */}
+            <button type="button"
               onClick={() => setFormData(prev => ({ ...prev, on_offer: !prev.on_offer }))}
               className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all text-left ${
-                formData.on_offer
-                  ? 'border-[#9acd32] bg-[#9acd32]/5'
-                  : 'border-slate-200 hover:border-[#9acd32]/40'
+                formData.on_offer ? 'border-[#9acd32] bg-[#9acd32]/5' : 'border-slate-200 hover:border-[#9acd32]/40'
               }`}
             >
               <div className={`p-2 rounded-xl flex-shrink-0 ${formData.on_offer ? 'bg-[#9acd32]' : 'bg-slate-100'}`}>
                 <Tag size={18} className={formData.on_offer ? 'text-white' : 'text-slate-400'} />
               </div>
-              <div>
-                <p className={`font-semibold text-sm ${formData.on_offer ? 'text-[#7cb342]' : 'text-slate-600'}`}>
-                  En Oferta
-                </p>
-                <p className="text-xs text-slate-400">Muestra badge de oferta especial</p>
+              <div className="flex-1 min-w-0">
+                <p className={`font-semibold text-sm ${formData.on_offer ? 'text-[#7cb342]' : 'text-slate-600'}`}>En Oferta</p>
+                <p className="text-xs text-slate-400 leading-tight">Badge de oferta</p>
               </div>
-              <div className={`ml-auto w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
                 formData.on_offer ? 'bg-[#9acd32] border-[#9acd32]' : 'border-slate-300'
               }`}>
                 {formData.on_offer && <div className="w-2 h-2 bg-white rounded-full" />}
               </div>
             </button>
+
+            {/* ── VENDIDO (nuevo) ── */}
+            <button type="button"
+              onClick={() => setFormData(prev => ({ ...prev, sold: !prev.sold }))}
+              className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all text-left ${
+                formData.sold ? 'border-slate-600 bg-slate-100' : 'border-slate-200 hover:border-slate-400'
+              }`}
+            >
+              <div className={`p-2 rounded-xl flex-shrink-0 ${formData.sold ? 'bg-slate-700' : 'bg-slate-100'}`}>
+                <CheckCircle size={18} className={formData.sold ? 'text-white' : 'text-slate-400'} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className={`font-semibold text-sm ${formData.sold ? 'text-slate-700' : 'text-slate-600'}`}>Vendido</p>
+                <p className="text-xs text-slate-400 leading-tight">Marca como vendida</p>
+              </div>
+              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                formData.sold ? 'bg-slate-700 border-slate-700' : 'border-slate-300'
+              }`}>
+                {formData.sold && <div className="w-2 h-2 bg-white rounded-full" />}
+              </div>
+            </button>
           </div>
 
+          {/* Aviso cuando está marcada como vendida */}
+          {formData.sold && (
+            <div className="bg-slate-100 border border-slate-300 rounded-2xl px-4 py-3 flex items-center gap-3">
+              <CheckCircle size={18} className="text-slate-500 flex-shrink-0" />
+              <p className="text-sm text-slate-600">
+                Esta propiedad aparecerá con un <strong>overlay "Vendido"</strong> y en escala de grises en la galería.
+              </p>
+            </div>
+          )}
 
           {/* PRECIO ORIGINAL — solo visible si está en oferta */}
           {formData.on_offer && (
@@ -259,16 +389,9 @@ const AdminModal = ({ isOpen, onClose, editProperty, onSuccess }) => {
                 <div className="px-4 py-3 border border-slate-300 rounded-xl bg-white font-medium text-[#1a5f7a] min-w-[110px] flex items-center">
                   {CURRENCIES.find(c => c.value === formData.currency)?.symbol || '$'}
                 </div>
-                <div className="relative flex-1">
-                  <input
-                    type="text"
-                    name="original_price"
-                    value={formData.original_price}
-                    onChange={(e) => setFormData(prev => ({ ...prev, original_price: formatNumber(e.target.value) }))}
-                    className={inputClass}
-                    placeholder="Ej: 65.000.000"
-                  />
-                </div>
+                <input type="text" name="original_price" value={formData.original_price}
+                  onChange={(e) => setFormData(prev => ({ ...prev, original_price: formatNumber(e.target.value) }))}
+                  className={inputClass} placeholder="Ej: 65.000.000" />
               </div>
               <p className="text-xs text-slate-400 mt-1">Este precio aparecerá tachado en la card y la modal indicando el descuento</p>
             </div>
@@ -297,7 +420,8 @@ const AdminModal = ({ isOpen, onClose, editProperty, onSuccess }) => {
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Precio *</label>
             <div className="flex gap-3">
-              <select name="currency" value={formData.currency} onChange={handleChange} className="px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-[#1a5f7a] outline-none bg-white font-medium text-[#1a5f7a] min-w-[110px]">
+              <select name="currency" value={formData.currency} onChange={handleChange}
+                className="px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-[#1a5f7a] outline-none bg-white font-medium text-[#1a5f7a] min-w-[110px]">
                 {CURRENCIES.map(c => <option key={c.value} value={c.value}>{c.symbol}</option>)}
               </select>
               <input type="text" name="price" value={formData.price} onChange={handlePriceChange} required className={inputClass} placeholder={selectedCurrency.placeholder} />
@@ -361,7 +485,7 @@ const AdminModal = ({ isOpen, onClose, editProperty, onSuccess }) => {
             </div>
           </div>
 
-          {/* DESCRIPCIÓN CON MARKDOWN */}
+          {/* DESCRIPCIÓN */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Descripción</label>
             <textarea name="description" value={formData.description} onChange={handleChange} rows="6" className={inputClass}
@@ -373,8 +497,12 @@ const AdminModal = ({ isOpen, onClose, editProperty, onSuccess }) => {
 
           {/* BOTONES */}
           <div className="flex gap-4 pt-4">
-            <button type="button" onClick={onClose} className="flex-1 px-6 py-3 border-2 border-slate-300 text-slate-700 rounded-full font-medium hover:bg-slate-50 transition-colors">Cancelar</button>
-            <button type="submit" disabled={submitting || uploading} className="flex-1 px-6 py-3 bg-[#1a5f7a] hover:bg-[#134e66] text-white rounded-full font-medium transition-all disabled:opacity-50">
+            <button type="button" onClick={onClose}
+              className="flex-1 px-6 py-3 border-2 border-slate-300 text-slate-700 rounded-full font-medium hover:bg-slate-50 transition-colors">
+              Cancelar
+            </button>
+            <button type="submit" disabled={submitting || uploading}
+              className="flex-1 px-6 py-3 bg-[#1a5f7a] hover:bg-[#134e66] text-white rounded-full font-medium transition-all disabled:opacity-50">
               {submitting ? 'Guardando...' : editProperty ? 'Actualizar' : 'Crear Propiedad'}
             </button>
           </div>
