@@ -56,10 +56,15 @@ const AdminModal = ({ isOpen, onClose, editProperty, onSuccess }) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const fileInputRef = useRef(null);
 
-  // ── Drag & drop refs ────────────────────────────────────────────────────
+  // ── Drag & drop refs (mouse + touch) ───────────────────────────────────
   const dragIndex = useRef(null);
   const dragOverIndex = useRef(null);
   const [dragOverIdx, setDragOverIdx] = useState(null); // para highlight visual
+
+  // Touch drag
+  const touchDragIndex = useRef(null);
+  const touchDragOverIndex = useRef(null);
+  const [touchDragging, setTouchDragging] = useState(false);
 
   useEffect(() => {
     if (editProperty) {
@@ -115,7 +120,19 @@ const AdminModal = ({ isOpen, onClose, editProperty, onSuccess }) => {
     setCurrentImageIndex(prev => Math.max(0, prev - 1));
   };
 
-  // ── Drag & drop handlers ────────────────────────────────────────────────
+  // ── Reorder helper compartido ────────────────────────────────────────────
+  const reorderImages = (fromIndex, toIndex) => {
+    if (fromIndex === null || fromIndex === toIndex) return;
+    setFormData(prev => {
+      const newUrls = [...prev.image_urls];
+      const dragged = newUrls.splice(fromIndex, 1)[0];
+      newUrls.splice(toIndex, 0, dragged);
+      return { ...prev, image_urls: newUrls };
+    });
+    setCurrentImageIndex(toIndex);
+  };
+
+  // ── Mouse drag handlers ──────────────────────────────────────────────────
   const handleDragStart = (e, index) => {
     dragIndex.current = index;
     e.dataTransfer.effectAllowed = 'move';
@@ -134,18 +151,7 @@ const AdminModal = ({ isOpen, onClose, editProperty, onSuccess }) => {
 
   const handleDrop = (e, index) => {
     e.preventDefault();
-    if (dragIndex.current === null || dragIndex.current === index) {
-      setDragOverIdx(null);
-      return;
-    }
-    setFormData(prev => {
-      const newUrls = [...prev.image_urls];
-      const dragged = newUrls.splice(dragIndex.current, 1)[0];
-      newUrls.splice(index, 0, dragged);
-      return { ...prev, image_urls: newUrls };
-    });
-    // Si la imagen destacada (index 0) cambia, actualizamos la vista
-    setCurrentImageIndex(index);
+    reorderImages(dragIndex.current, index);
     dragIndex.current = null;
     dragOverIndex.current = null;
     setDragOverIdx(null);
@@ -154,6 +160,53 @@ const AdminModal = ({ isOpen, onClose, editProperty, onSuccess }) => {
   const handleDragEnd = () => {
     dragIndex.current = null;
     dragOverIndex.current = null;
+    setDragOverIdx(null);
+  };
+
+  // ── Touch drag handlers ──────────────────────────────────────────────────
+  const handleTouchStart = (e, index) => {
+    // Solo 1 dedo
+    if (e.touches.length !== 1) return;
+    touchDragIndex.current = index;
+    touchDragOverIndex.current = null;
+    setTouchDragging(true);
+    setDragOverIdx(null);
+  };
+
+  const handleTouchMove = (e) => {
+    if (touchDragIndex.current === null) return;
+    e.preventDefault(); // evita scroll mientras arrastra
+
+    const touch = e.touches[0];
+    // Temporalmente ocultamos el elemento arrastrado para que elementFromPoint
+    // pueda detectar el que está debajo
+    const allThumbs = document.querySelectorAll('[data-img-index]');
+    allThumbs[touchDragIndex.current]?.style.setProperty('pointer-events', 'none');
+
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+
+    allThumbs[touchDragIndex.current]?.style.removeProperty('pointer-events');
+
+    // Subir por el DOM hasta encontrar el data-img-index
+    const target = el?.closest('[data-img-index]');
+    if (target) {
+      const overIdx = parseInt(target.getAttribute('data-img-index'), 10);
+      if (!isNaN(overIdx) && overIdx !== touchDragOverIndex.current) {
+        touchDragOverIndex.current = overIdx;
+        setDragOverIdx(overIdx);
+      }
+    }
+  };
+
+  const handleTouchEnd = (e) => {
+    if (touchDragIndex.current === null) return;
+    e.preventDefault();
+    if (touchDragOverIndex.current !== null) {
+      reorderImages(touchDragIndex.current, touchDragOverIndex.current);
+    }
+    touchDragIndex.current = null;
+    touchDragOverIndex.current = null;
+    setTouchDragging(false);
     setDragOverIdx(null);
   };
 
@@ -242,24 +295,28 @@ const AdminModal = ({ isOpen, onClose, editProperty, onSuccess }) => {
             {formData.image_urls.length > 0 && (
               <p className="text-xs text-slate-400 mb-2 flex items-center gap-1">
                 <GripVertical size={12} />
-                Arrastra las fotos para cambiar el orden. La primera es la portada.
+                Arrastra las fotos para cambiar el orden (también funciona con el dedo). La primera es la portada.
               </p>
             )}
             <div className="grid grid-cols-4 gap-2 mb-3">
               {formData.image_urls.map((url, i) => (
                 <div
                   key={url + i}
+                  data-img-index={i}
                   draggable
                   onDragStart={(e) => handleDragStart(e, i)}
                   onDragOver={(e) => handleDragOver(e, i)}
                   onDragLeave={handleDragLeave}
                   onDrop={(e) => handleDrop(e, i)}
                   onDragEnd={handleDragEnd}
+                  onTouchStart={(e) => handleTouchStart(e, i)}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleTouchEnd}
                   onClick={() => setCurrentImageIndex(i)}
                   className={`cursor-grab active:cursor-grabbing relative rounded-xl overflow-hidden aspect-square border-2 transition-all select-none
                     ${i === currentImageIndex ? 'border-[#1a5f7a]' : 'border-transparent'}
                     ${dragOverIdx === i ? 'border-[#9acd32] scale-105 shadow-lg' : ''}
-                    ${dragIndex.current === i ? 'opacity-40' : 'opacity-100'}
+                    ${(dragIndex.current === i || touchDragIndex.current === i) ? 'opacity-40' : 'opacity-100'}
                   `}
                 >
                   <img src={url} alt="" className="w-full h-full object-cover pointer-events-none" draggable={false} />
