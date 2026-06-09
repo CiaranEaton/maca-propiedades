@@ -134,9 +134,33 @@ const PropertyModal = ({ property, onClose }) => {
   const originalPriceDisplay = property.original_price
     ? `${currencySymbol} ${property.original_price}` : null;
 
-  const whatsappUrl = `https://wa.me/56954327446?text=${encodeURIComponent(
-    `Hola, me interesa la propiedad: ${property.title} en ${property.commune ? property.commune + ', ' : ''}${property.region || property.location || ''}`
-  )}`;
+  const location = [property.commune, property.region || property.location].filter(Boolean).join(', ');
+const characteristics = [
+  property.bedrooms   ? `🛏️ ${property.bedrooms} hab.`                                : null,
+  property.bathrooms  ? `🚿 ${property.bathrooms} baños`                               : null,
+  property.parking    ? `🚗 ${property.parking} estac.`                                : null,
+  property.area_built ? `📐 ${property.area_built} m² construidos`                    : null,
+  property.area_total ? `🌿 ${property.area_total} m² terreno`                        : null,
+].filter(Boolean).join(' | ');
+
+const typeEmoji = { Casa: '🏠', Apartamento: '🏢', Terreno: '🌿' }[property.type] || '🏠';
+
+const waMessage = [
+  `Hola! Me interesa una propiedad de MACA Propiedades:`,
+  ``,
+  `${typeEmoji} *${property.title}*`,
+  `📍 ${location}`,
+  `🏷️ ${property.type} en ${property.status}`,
+  `💰 ${priceDisplay}`,
+  characteristics ? characteristics : null,
+  ``,
+  `🔗 maca-propiedades.vercel.app`,
+  `🆔 Ref: ${property.id?.slice(0, 8).toUpperCase()}`,
+  ``,
+  `¿Podrían darme más información? Gracias.`,
+].filter(line => line !== null).join('\n');
+
+const whatsappUrl = `https://wa.me/56954327446?text=${encodeURIComponent(waMessage)}`;
 
   const InfoChip = ({ icon: Icon, label, value, color = '#00bcd4' }) => (
     value !== undefined && value !== null && value !== '' && value !== 0 ? (
