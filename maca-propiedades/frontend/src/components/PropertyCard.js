@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bed, Bath, MapPin, Edit, Trash2, ChevronLeft, ChevronRight, Car, Maximize2, Images, Star, Tag } from 'lucide-react';
+import { Bed, Bath, MapPin, Edit, Trash2, ChevronLeft, ChevronRight, Car, Maximize2, Images, Star, Tag, CheckCircle } from 'lucide-react';
 
 const CURRENCY_SYMBOLS = { CLP: '$', UF: 'UF', USD: 'USD' };
 
@@ -13,17 +13,26 @@ const PropertyCard = ({ property, onEdit, onDelete, isAdmin, onClick }) => {
   const priceDisplay = `${currencySymbol} ${property.price}`;
   const originalPriceDisplay = property.original_price ? `${currencySymbol} ${property.original_price}` : null;
 
+  const isSold = property.sold;
+
   return (
     <div
       onClick={() => onClick(property)}
       className="cursor-pointer group bg-white rounded-2xl overflow-hidden border transition-all duration-300 shadow-sm hover:shadow-lg flex flex-col"
       style={{
-        borderColor: property.featured ? '#1a5f7a' : property.on_offer ? '#9acd32' : '#f1f5f9',
-        boxShadow: property.featured
+        borderColor: isSold
+          ? '#94a3b8'
+          : property.featured ? '#1a5f7a'
+          : property.on_offer ? '#9acd32'
+          : '#f1f5f9',
+        boxShadow: isSold
+          ? 'none'
+          : property.featured
           ? '0 0 0 2px rgba(26,95,122,0.2)'
           : property.on_offer
           ? '0 0 0 2px rgba(154,205,50,0.2)'
-          : undefined
+          : undefined,
+        opacity: isSold ? 0.82 : 1,
       }}
     >
       {/* Imagen */}
@@ -32,7 +41,7 @@ const PropertyCard = ({ property, onEdit, onDelete, isAdmin, onClick }) => {
           <img
             src={images[imgIndex]}
             alt={property.title}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+            className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${isSold ? 'grayscale' : ''}`}
           />
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 gap-2">
@@ -42,34 +51,50 @@ const PropertyCard = ({ property, onEdit, onDelete, isAdmin, onClick }) => {
 
         <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent pointer-events-none" />
 
-        {/* Badges destacada / en oferta */}
-        {(property.featured || property.on_offer) && (
-          <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5">
-            {property.featured && (
-              <div className="flex items-center gap-1.5 bg-[#1a5f7a] text-white px-3 py-1.5 rounded-full shadow-lg">
-                <Star size={12} fill="white" />
-                <span className="text-xs font-bold uppercase tracking-wide">Destacada</span>
-              </div>
-            )}
-            {property.on_offer && (
-              <div className="flex items-center gap-1.5 text-white px-3 py-1.5 rounded-full shadow-lg"
-                style={{ background: 'linear-gradient(135deg, #9acd32, #7cb342)' }}>
-                <Tag size={12} />
-                <span className="text-xs font-bold uppercase tracking-wide">En oferta</span>
-              </div>
-            )}
+        {/* Overlay VENDIDO */}
+        {isSold && (
+          <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+            <div className="bg-slate-800/75 backdrop-blur-sm px-6 py-3 rounded-2xl flex items-center gap-2 shadow-xl rotate-[-8deg]">
+              <CheckCircle size={20} className="text-white" />
+              <span className="text-white font-black text-xl uppercase tracking-widest">Vendido</span>
+            </div>
           </div>
         )}
 
-        {/* Badges tipo/estado */}
-        <div className={`absolute top-3 flex gap-1.5 ${property.featured || property.on_offer ? 'right-3' : 'left-3'}`}>
-          <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide shadow ${
-            property.status === 'Venta' ? 'bg-[#9acd32] text-white' : 'bg-[#00bcd4] text-white'
-          }`}>{property.status}</span>
-          <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide bg-white/90 text-[#1a5f7a] shadow">
-            {property.type}
-          </span>
+        {/* Badges destacada / en oferta / vendido (top-left) */}
+        <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5">
+          {isSold && (
+            <div className="flex items-center gap-1.5 bg-slate-700 text-white px-3 py-1.5 rounded-full shadow-lg">
+              <CheckCircle size={12} />
+              <span className="text-xs font-bold uppercase tracking-wide">Vendido</span>
+            </div>
+          )}
+          {!isSold && property.featured && (
+            <div className="flex items-center gap-1.5 bg-[#1a5f7a] text-white px-3 py-1.5 rounded-full shadow-lg">
+              <Star size={12} fill="white" />
+              <span className="text-xs font-bold uppercase tracking-wide">Destacada</span>
+            </div>
+          )}
+          {!isSold && property.on_offer && (
+            <div className="flex items-center gap-1.5 text-white px-3 py-1.5 rounded-full shadow-lg"
+              style={{ background: 'linear-gradient(135deg, #9acd32, #7cb342)' }}>
+              <Tag size={12} />
+              <span className="text-xs font-bold uppercase tracking-wide">En oferta</span>
+            </div>
+          )}
         </div>
+
+        {/* Badges tipo/estado */}
+        {!isSold && (
+          <div className={`absolute top-3 flex gap-1.5 ${property.featured || property.on_offer ? 'right-3' : 'left-3'}`}>
+            <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide shadow ${
+              property.status === 'Venta' ? 'bg-[#9acd32] text-white' : 'bg-[#00bcd4] text-white'
+            }`}>{property.status}</span>
+            <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide bg-white/90 text-[#1a5f7a] shadow">
+              {property.type}
+            </span>
+          </div>
+        )}
 
         {/* Admin buttons */}
         {isAdmin && (
@@ -86,7 +111,7 @@ const PropertyCard = ({ property, onEdit, onDelete, isAdmin, onClick }) => {
         )}
 
         {/* Carrusel */}
-        {images.length > 1 && (
+        {images.length > 1 && !isSold && (
           <>
             <button type="button"
               onClick={(e) => { e.stopPropagation(); setImgIndex(i => (i - 1 + images.length) % images.length); }}
@@ -106,7 +131,7 @@ const PropertyCard = ({ property, onEdit, onDelete, isAdmin, onClick }) => {
       </div>
 
       {/* Info */}
-      <div className="p-4 flex flex-col gap-2 flex-1">
+      <div className={`p-4 flex flex-col gap-2 flex-1 ${isSold ? 'opacity-60' : ''}`}>
         <h3 className="text-base font-semibold text-[#1a5f7a] leading-tight line-clamp-2">{property.title}</h3>
 
         <div className="flex items-center gap-1.5 text-slate-500">
@@ -139,19 +164,24 @@ const PropertyCard = ({ property, onEdit, onDelete, isAdmin, onClick }) => {
           )}
         </div>
 
-        {/* Precio — con precio original tachado si hay oferta */}
         <div className="flex flex-col gap-0.5">
-          {property.on_offer && originalPriceDisplay && (
-            <span className="text-sm text-slate-400 line-through">{originalPriceDisplay}</span>
+          {isSold ? (
+            <p className="text-base font-bold text-slate-400 uppercase tracking-widest">Vendido</p>
+          ) : (
+            <>
+              {property.on_offer && originalPriceDisplay && (
+                <span className="text-sm text-slate-400 line-through">{originalPriceDisplay}</span>
+              )}
+              <div className="flex items-center gap-2">
+                <p className={`text-xl font-bold ${property.on_offer ? 'text-[#7cb342]' : 'text-[#1a5f7a]'}`}>
+                  {priceDisplay}
+                </p>
+                {property.on_offer && originalPriceDisplay && (
+                  <span className="text-xs bg-[#9acd32] text-white px-2 py-0.5 rounded-full font-bold">OFERTA</span>
+                )}
+              </div>
+            </>
           )}
-          <div className="flex items-center gap-2">
-            <p className={`text-xl font-bold ${property.on_offer ? 'text-[#7cb342]' : 'text-[#1a5f7a]'}`}>
-              {priceDisplay}
-            </p>
-            {property.on_offer && originalPriceDisplay && (
-              <span className="text-xs bg-[#9acd32] text-white px-2 py-0.5 rounded-full font-bold">OFERTA</span>
-            )}
-          </div>
         </div>
       </div>
     </div>
