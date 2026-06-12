@@ -1,6 +1,4 @@
-/* ───────────────────────────────────────────────────────────────────────────
-   Existente (no tocar)
-   ─────────────────────────────────────────────────────────────────────────── */
+
 .property-card-image {
   transition: transform 0.7s ease-in-out;
 }
@@ -10,10 +8,7 @@
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* ───────────────────────────────────────────────────────────────────────────
-   MACA — rediseño UX/UI (animaciones del handoff de Claude Design)
-   CSS plano: vive aquí (no en index.css) para no tocar la config de Tailwind.
-   ─────────────────────────────────────────────────────────────────────────── */
+html { scroll-behavior: smooth; }
 
 @keyframes maca-splash {
   0% { opacity: 1; }
@@ -58,6 +53,7 @@
 
 /* Respeta usuarios con movimiento reducido */
 @media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
   .maca-pop, .maca-slide-in, .maca-pulse, .maca-bob, .maca-fade-up { animation: none !important; }
   .maca-kenburns { transition: opacity .4s ease !important; transform: none !important; }
 }
