@@ -59,6 +59,7 @@ class Property(BaseModel):
     description: Optional[str] = ""
     featured: Optional[bool] = False
     on_offer: Optional[bool] = False
+    sold: Optional[bool] = False
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -83,6 +84,7 @@ class PropertyCreate(BaseModel):
     description: Optional[str] = ""
     featured: Optional[bool] = False
     on_offer: Optional[bool] = False
+    sold: Optional[bool] = False
 
 
 class PropertyUpdate(BaseModel):
@@ -106,6 +108,7 @@ class PropertyUpdate(BaseModel):
     description: Optional[str] = None
     featured: Optional[bool] = None
     on_offer: Optional[bool] = None
+    sold: Optional[bool] = None
 
 
 @api_router.get("/")
