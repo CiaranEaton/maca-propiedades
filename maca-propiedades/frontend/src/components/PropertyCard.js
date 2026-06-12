@@ -1,25 +1,40 @@
-import React, { useState } from 'react';
-import { Bed, Bath, MapPin, Edit, Trash2, ChevronLeft, ChevronRight, Car, Maximize2, Images, Star, Tag, CheckCircle } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Bed, Bath, MapPin, Edit, Trash2, ChevronLeft, ChevronRight, Car, Maximize2, Images, Star, Tag, CheckCircle, ArrowRight } from 'lucide-react';
 
 const CURRENCY_SYMBOLS = { CLP: '$', UF: 'UF', USD: 'USD' };
 
-const PropertyCard = ({ property, onEdit, onDelete, isAdmin, onClick }) => {
+const PropertyCard = ({ property, index = 0, onEdit, onDelete, isAdmin, onClick }) => {
   const images = property.image_urls?.length
     ? property.image_urls
     : (property.image_url ? [property.image_url] : []);
 
   const [imgIndex, setImgIndex] = useState(0);
+  const autoRef = useRef(null);
+
   const currencySymbol = CURRENCY_SYMBOLS[property.currency] || '$';
   const priceDisplay = `${currencySymbol} ${property.price}`;
   const originalPriceDisplay = property.original_price ? `${currencySymbol} ${property.original_price}` : null;
 
   const isSold = property.sold;
 
+  // ── Auto-avance de fotos al pasar el mouse / tocar (se detiene al salir) ────
+  const startAuto = () => {
+    if (autoRef.current || images.length < 2 || isSold) return;
+    autoRef.current = setInterval(() => {
+      setImgIndex(i => (i + 1) % images.length);
+    }, 2200);
+  };
+  const stopAuto = () => {
+    if (autoRef.current) { clearInterval(autoRef.current); autoRef.current = null; }
+  };
+  useEffect(() => () => stopAuto(), []);
+
   return (
     <div
       onClick={() => onClick(property)}
-      className="cursor-pointer group bg-white rounded-2xl overflow-hidden border transition-all duration-300 shadow-sm hover:shadow-lg flex flex-col"
+      className="maca-pop cursor-pointer group bg-white rounded-2xl overflow-hidden border transition-all duration-300 shadow-sm hover:shadow-2xl hover:-translate-y-1.5 flex flex-col"
       style={{
+        animationDelay: `${Math.min(index, 8) * 60}ms`,
         borderColor: isSold
           ? '#94a3b8'
           : property.featured ? '#1a5f7a'
@@ -36,7 +51,12 @@ const PropertyCard = ({ property, onEdit, onDelete, isAdmin, onClick }) => {
       }}
     >
       {/* Imagen */}
-      <div className="relative w-full h-52 bg-slate-200 flex-shrink-0 overflow-hidden">
+      <div
+        className="relative w-full h-52 bg-slate-200 flex-shrink-0 overflow-hidden"
+        onMouseEnter={startAuto}
+        onMouseLeave={stopAuto}
+        onTouchStart={startAuto}
+      >
         {images.length > 0 ? (
           <img
             src={images[imgIndex]}
@@ -114,15 +134,31 @@ const PropertyCard = ({ property, onEdit, onDelete, isAdmin, onClick }) => {
         {images.length > 1 && !isSold && (
           <>
             <button type="button"
-              onClick={(e) => { e.stopPropagation(); setImgIndex(i => (i - 1 + images.length) % images.length); }}
+              onClick={(e) => { e.stopPropagation(); stopAuto(); setImgIndex(i => (i - 1 + images.length) % images.length); }}
               className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white p-1.5 rounded-full transition">
               <ChevronLeft size={16} />
             </button>
             <button type="button"
-              onClick={(e) => { e.stopPropagation(); setImgIndex(i => (i + 1) % images.length); }}
+              onClick={(e) => { e.stopPropagation(); stopAuto(); setImgIndex(i => (i + 1) % images.length); }}
               className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white p-1.5 rounded-full transition">
               <ChevronRight size={16} />
             </button>
+
+            {/* Puntos indicadores */}
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5 z-10 pointer-events-none">
+              {images.map((_, i) => (
+                <span
+                  key={i}
+                  className="rounded-full transition-all"
+                  style={{
+                    height: '5px',
+                    width: i === imgIndex ? '16px' : '5px',
+                    background: i === imgIndex ? '#9acd32' : 'rgba(255,255,255,.7)',
+                  }}
+                />
+              ))}
+            </div>
+
             <div className="absolute bottom-2 right-2 bg-black/50 text-white text-xs px-2 py-0.5 rounded-full">
               {imgIndex + 1}/{images.length}
             </div>
@@ -164,23 +200,36 @@ const PropertyCard = ({ property, onEdit, onDelete, isAdmin, onClick }) => {
           )}
         </div>
 
-        <div className="flex flex-col gap-0.5">
-          {isSold ? (
-            <p className="text-base font-bold text-slate-400 uppercase tracking-widest">Vendido</p>
-          ) : (
-            <>
-              {property.on_offer && originalPriceDisplay && (
-                <span className="text-sm text-slate-400 line-through">{originalPriceDisplay}</span>
-              )}
-              <div className="flex items-center gap-2">
-                <p className={`text-xl font-bold ${property.on_offer ? 'text-[#7cb342]' : 'text-[#1a5f7a]'}`}>
-                  {priceDisplay}
-                </p>
+        {/* Precio + Ver detalles */}
+        <div className="flex items-end justify-between gap-2 flex-wrap">
+          <div className="flex flex-col gap-0.5 min-w-0">
+            {isSold ? (
+              <p className="text-base font-bold text-slate-400 uppercase tracking-widest">Vendido</p>
+            ) : (
+              <>
                 {property.on_offer && originalPriceDisplay && (
-                  <span className="text-xs bg-[#9acd32] text-white px-2 py-0.5 rounded-full font-bold">OFERTA</span>
+                  <span className="text-sm text-slate-400 line-through">{originalPriceDisplay}</span>
                 )}
-              </div>
-            </>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className={`text-xl font-bold ${property.on_offer ? 'text-[#7cb342]' : 'text-[#1a5f7a]'}`}>
+                    {priceDisplay}
+                  </p>
+                  {property.on_offer && originalPriceDisplay && (
+                    <span className="text-xs bg-[#9acd32] text-white px-2 py-0.5 rounded-full font-bold">OFERTA</span>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+
+          {!isSold && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onClick(property); }}
+              className="inline-flex items-center gap-1.5 bg-[#1a5f7a] hover:bg-[#134e66] text-white text-xs font-semibold px-3.5 py-2 rounded-xl whitespace-nowrap flex-shrink-0 transition-all hover:-translate-y-0.5"
+            >
+              Ver detalles
+              <ArrowRight size={14} />
+            </button>
           )}
         </div>
       </div>
