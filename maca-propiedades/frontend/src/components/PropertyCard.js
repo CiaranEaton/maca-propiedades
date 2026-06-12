@@ -16,6 +16,8 @@ const PropertyCard = ({ property, index = 0, onEdit, onDelete, isAdmin, onClick 
   const originalPriceDisplay = property.original_price ? `${currencySymbol} ${property.original_price}` : null;
 
   const isSold = property.sold;
+  // La etiqueta de "no disponible" depende del estado: Venta → Vendido, Arriendo → Arrendado
+  const closedLabel = property.status === 'Arriendo' ? 'Arrendado' : 'Vendido';
 
   // ── Auto-avance de fotos al pasar el mouse / tocar (se detiene al salir) ────
   const startAuto = () => {
@@ -71,22 +73,22 @@ const PropertyCard = ({ property, index = 0, onEdit, onDelete, isAdmin, onClick 
 
         <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent pointer-events-none" />
 
-        {/* Overlay VENDIDO */}
+        {/* Overlay no disponible */}
         {isSold && (
           <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
             <div className="bg-slate-800/75 backdrop-blur-sm px-6 py-3 rounded-2xl flex items-center gap-2 shadow-xl rotate-[-8deg]">
               <CheckCircle size={20} className="text-white" />
-              <span className="text-white font-black text-xl uppercase tracking-widest">Vendido</span>
+              <span className="text-white font-black text-xl uppercase tracking-widest">{closedLabel}</span>
             </div>
           </div>
         )}
 
-        {/* Badges destacada / en oferta / vendido (top-left) */}
+        {/* Badges destacada / en oferta / no disponible (top-left) */}
         <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5">
           {isSold && (
             <div className="flex items-center gap-1.5 bg-slate-700 text-white px-3 py-1.5 rounded-full shadow-lg">
               <CheckCircle size={12} />
-              <span className="text-xs font-bold uppercase tracking-wide">Vendido</span>
+              <span className="text-xs font-bold uppercase tracking-wide">{closedLabel}</span>
             </div>
           )}
           {!isSold && property.featured && (
@@ -204,7 +206,7 @@ const PropertyCard = ({ property, index = 0, onEdit, onDelete, isAdmin, onClick 
         <div className="flex items-end justify-between gap-2 flex-wrap">
           <div className="flex flex-col gap-0.5 min-w-0">
             {isSold ? (
-              <p className="text-base font-bold text-slate-400 uppercase tracking-widest">Vendido</p>
+              <p className="text-base font-bold text-slate-400 uppercase tracking-widest">{closedLabel}</p>
             ) : (
               <>
                 {property.on_offer && originalPriceDisplay && (
