@@ -40,7 +40,7 @@ const emptyForm = {
   area: '', area_built: '', area_total: '',
   region: '', commune: '',
   image_urls: [], description: '',
-  featured: false, on_offer: false, sold: false,  // ← sold agregado
+  featured: false, on_offer: false, sold: false,
   original_price: ''
 };
 
@@ -237,6 +237,9 @@ const AdminModal = ({ isOpen, onClose, editProperty, onSuccess }) => {
   const inputClass = "w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-[#1a5f7a] focus:border-transparent outline-none transition-all bg-white";
   const selectedCurrency = CURRENCIES.find(c => c.value === formData.currency) || CURRENCIES[0];
   const comunas = formData.region ? REGIONES_COMUNAS[formData.region] || [] : [];
+  // El check de "no disponible" se rotula según el estado: Venta → Vendido, Arriendo → Arrendado
+  const closedLabel = formData.status === 'Arriendo' ? 'Arrendado' : 'Vendido';
+  const closedLabelLower = formData.status === 'Arriendo' ? 'arrendada' : 'vendida';
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -359,7 +362,7 @@ const AdminModal = ({ isOpen, onClose, editProperty, onSuccess }) => {
               placeholder="Ej: VENDO LINDA CASA EN CHILLÁN !" />
           </div>
 
-          {/* ── DESTACADA / EN OFERTA / VENDIDO ─────────────────────────── */}
+          {/* ── DESTACADA / EN OFERTA / NO DISPONIBLE ───────────────────── */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
 
             {/* Destacada */}
@@ -404,7 +407,7 @@ const AdminModal = ({ isOpen, onClose, editProperty, onSuccess }) => {
               </div>
             </button>
 
-            {/* ── VENDIDO (nuevo) ── */}
+            {/* ── VENDIDO / ARRENDADO (rótulo dinámico según Estado) ── */}
             <button type="button"
               onClick={() => setFormData(prev => ({ ...prev, sold: !prev.sold }))}
               className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all text-left ${
@@ -415,8 +418,8 @@ const AdminModal = ({ isOpen, onClose, editProperty, onSuccess }) => {
                 <CheckCircle size={18} className={formData.sold ? 'text-white' : 'text-slate-400'} />
               </div>
               <div className="flex-1 min-w-0">
-                <p className={`font-semibold text-sm ${formData.sold ? 'text-slate-700' : 'text-slate-600'}`}>Vendido</p>
-                <p className="text-xs text-slate-400 leading-tight">Marca como vendida</p>
+                <p className={`font-semibold text-sm ${formData.sold ? 'text-slate-700' : 'text-slate-600'}`}>{closedLabel}</p>
+                <p className="text-xs text-slate-400 leading-tight">Marca como {closedLabelLower}</p>
               </div>
               <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
                 formData.sold ? 'bg-slate-700 border-slate-700' : 'border-slate-300'
@@ -426,12 +429,12 @@ const AdminModal = ({ isOpen, onClose, editProperty, onSuccess }) => {
             </button>
           </div>
 
-          {/* Aviso cuando está marcada como vendida */}
+          {/* Aviso cuando está marcada como no disponible */}
           {formData.sold && (
             <div className="bg-slate-100 border border-slate-300 rounded-2xl px-4 py-3 flex items-center gap-3">
               <CheckCircle size={18} className="text-slate-500 flex-shrink-0" />
               <p className="text-sm text-slate-600">
-                Esta propiedad aparecerá con un <strong>overlay "Vendido"</strong> y en escala de grises en la galería.
+                Esta propiedad aparecerá con un <strong>overlay "{closedLabel}"</strong> y en escala de grises en la galería.
               </p>
             </div>
           )}
