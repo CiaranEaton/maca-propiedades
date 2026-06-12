@@ -18,7 +18,7 @@ const Header = ({ onAdminClick, isAdmin, onLogout }) => {
           <a href="#" className="flex items-center">
             <img src="https://res.cloudinary.com/dixpqiaki/image/upload/v1774240529/21077156-80c5-424e-99bc-f9526a6f0026-removebg-preview_ldizx0.png" alt="MACA Propiedades" className="h-16 w-auto" />
           </a>
-          <nav className="hidden md:flex items-center gap-8">
+          <nav className="maca-slide-in hidden md:flex items-center gap-8">
             <a href="#propiedades" className={`font-medium transition-colors hover:text-[#1a5f7a] ${scrolled ? 'text-slate-700' : 'text-white'}`}>Propiedades</a>
             <a href="#contacto" className={`font-medium transition-colors hover:text-[#1a5f7a] ${scrolled ? 'text-slate-700' : 'text-white'}`}>Contacto</a>
             {isAdmin ? (
@@ -30,7 +30,7 @@ const Header = ({ onAdminClick, isAdmin, onLogout }) => {
               <button onClick={onAdminClick} className="bg-[#1a5f7a] hover:bg-[#134e66] text-white rounded-full px-6 py-3 font-medium transition-all hover:-translate-y-0.5">Admin</button>
             )}
           </nav>
-          <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden">
+          <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="maca-slide-in md:hidden">
             {mobileMenuOpen ? <X className={scrolled ? 'text-slate-700' : 'text-white'} size={28} /> : <Menu className={scrolled ? 'text-slate-700' : 'text-white'} size={28} />}
           </button>
         </div>
