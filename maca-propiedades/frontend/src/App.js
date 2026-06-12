@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import "./App.css";
 import Header from './components/Header';
 import HeroSlider from './components/HeroSlider';
@@ -6,6 +6,8 @@ import PropertyGallery from './components/PropertyGallery';
 import ContactForm from './components/ContactForm';
 import Footer from './components/Footer';
 import AdminModal from './components/AdminModal';
+import IntroSplash from './components/IntroSplash';
+import WhatsAppFab from './components/WhatsAppFab';
 
 const ADMIN_PASSWORD = "maca2026";
 
@@ -17,6 +19,33 @@ function App() {
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState(false);
+
+  // ── Filtros elevados a App: el buscador del Hero y las chips de la galería
+  //    comparten el mismo estado, así "Buscar" filtra de verdad ───────────────
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [communeFilter, setCommuneFilter] = useState('all');
+
+  // Lista cruda reportada por la galería → alimenta contadores y comunas del Hero
+  const [allProperties, setAllProperties] = useState([]);
+
+  const communes = useMemo(() => {
+    const set = new Set(allProperties.map(p => p.commune).filter(Boolean));
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [allProperties]);
+
+  const stats = useMemo(() => ([
+    { target: allProperties.length, prefix: '+', suffix: '', label: 'Propiedades' },
+    { target: 230, prefix: '+', suffix: '', label: 'Clientes felices' },
+    { target: 10, prefix: '', suffix: ' años', label: 'De experiencia' },
+    { target: communes.length, prefix: '', suffix: '', label: 'Comunas' },
+  ]), [allProperties.length, communes.length]);
+
+  const clearFilters = () => {
+    setTypeFilter('all');
+    setStatusFilter('all');
+    setCommuneFilter('all');
+  };
 
   const handleAdminClick = () => {
     if (isAdmin) {
@@ -61,11 +90,28 @@ function App() {
 
   return (
     <div className="App">
+      <IntroSplash />
       <Header onAdminClick={handleAdminClick} isAdmin={isAdmin} onLogout={handleLogout} />
-      <HeroSlider />
-      <PropertyGallery key={refreshKey} onEdit={handleOpenAdminModal} isAdmin={isAdmin} />
+      <HeroSlider
+        typeFilter={typeFilter} setTypeFilter={setTypeFilter}
+        statusFilter={statusFilter} setStatusFilter={setStatusFilter}
+        communeFilter={communeFilter} setCommuneFilter={setCommuneFilter}
+        communes={communes}
+        stats={stats}
+      />
+      <PropertyGallery
+        key={refreshKey}
+        onEdit={handleOpenAdminModal}
+        isAdmin={isAdmin}
+        typeFilter={typeFilter} setTypeFilter={setTypeFilter}
+        statusFilter={statusFilter} setStatusFilter={setStatusFilter}
+        communeFilter={communeFilter} setCommuneFilter={setCommuneFilter}
+        onData={setAllProperties}
+        onClearFilters={clearFilters}
+      />
       <ContactForm />
       <Footer />
+      <WhatsAppFab />
 
       {showPasswordPrompt && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
