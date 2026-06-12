@@ -107,7 +107,7 @@ const HeroSlider = ({
         {/* Buscador rápido — filtra de verdad la galería */}
         <div className="mt-9 mx-auto max-w-3xl bg-white/95 backdrop-blur rounded-2xl shadow-2xl p-3.5 flex flex-wrap gap-2.5 items-stretch">
           <label className={fieldClass}>
-            <span className={labelClass}>Tipo</span>
+            <span className={labelClass}>¿Que buscas?</span>
             <select className={selectClass} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
               <option value="all">Todas</option>
               <option value="Venta">Venta</option>
